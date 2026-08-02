@@ -46,7 +46,7 @@ namespace OdinPlus
 		{
 			if (CheckPinNeed())
 			{
-				Minimap.instance.DiscoverLocation(m_pinPosition, Minimap.PinType.Icon3, m_message);
+				Minimap.instance.DiscoverLocation(m_pinPosition, Minimap.PinType.Icon3, m_message, false);
 			}
 		}
 		public void SetLocName()
@@ -165,7 +165,7 @@ namespace OdinPlus
 		{
 			//OPT move to util                        
 			Vector3 ppos = Player.m_localPlayer.transform.position;
-			Vector2i val = ZoneSystem.instance.GetZone(ppos);
+			Vector2i val = ZoneSystem.GetZone(ppos);
 			return ID.ToV2I() == val;
 		}
 		public void Giveup()

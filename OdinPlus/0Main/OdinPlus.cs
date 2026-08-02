@@ -75,7 +75,8 @@ namespace OdinPlus
 			Root.AddComponent<LocationManager>();
 			Root.AddComponent<OdinMeads>();
 			Root.AddComponent<OdinItem>();
-			Root.AddComponent<PetManager>();
+// TODO: Pet system disabled for 0.221.12 API compatibility
+// 			Root.AddComponent<PetManager>();
 			Root.AddComponent<PrefabManager>();
 			Root.AddComponent<FxAssetManager>();
 			isInit = true;
@@ -102,10 +103,11 @@ namespace OdinPlus
 				{
 					FxAssetManager.Init();
 				}
-				if (!PetManager.isInit)
-				{
-					PetManager.Init();
-				}
+				// TODO: Pet system disabled for 0.221.12 API compatibility
+				// if (!PetManager.isInit)
+				// {
+				//     PetManager.Init();
+				// }
 				if (!PrefabManager.isInit)
 				{
 					PrefabManager.Init();
@@ -133,7 +135,8 @@ namespace OdinPlus
 		}
 		public static void Clear()
 		{
-			PetManager.Clear();
+// TODO: Pet system disabled for 0.221.12 API compatibility
+// 			PetManager.Clear();
 			QuestManager.instance.Clear();
 			LocationManager.Clear();
 			Destroy(Root.GetComponent<NpcManager>());
@@ -253,7 +256,8 @@ namespace OdinPlus
 			Root.AddComponent<OdinSE>();
 			Root.AddComponent<OdinMeads>();
 			Root.AddComponent<OdinItem>();
-			Root.AddComponent<PetManager>();
+// TODO: Pet system disabled for 0.221.12 API compatibility
+// 			Root.AddComponent<PetManager>();
 			Root.AddComponent<PrefabManager>();
 			Root.AddComponent<QuestManager>();
 			Root.AddComponent<LocationManager>();

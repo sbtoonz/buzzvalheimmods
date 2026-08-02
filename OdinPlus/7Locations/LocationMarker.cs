@@ -49,7 +49,7 @@ namespace OdinPlus
 			}
 			else
 			{
-				ID = ZoneSystem.instance.GetZone(transform.position).Pak();
+				ID = ZoneSystem.GetZone(transform.position).Pak();
 				if (MarkList.ContainsKey(ID))
 				{
 					DubList.Add(ID, this);

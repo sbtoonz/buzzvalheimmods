@@ -170,7 +170,7 @@ namespace OdinPlus
 			var player = Player.m_localPlayer;
 			if (player != null)
 			{
-				var val = ZoneSystem.instance.GetZone(player.transform.position);
+				var val = ZoneSystem.GetZone(player.transform.position);
 				GUILayout.Label("Zone: " + val.ToString(), style);
 				GUILayout.Label("Location: " + (player.transform.position).ToString(), style);
 
@@ -182,7 +182,7 @@ namespace OdinPlus
 
 						if (dic.ContainsKey(val))
 						{
-							string locName = dic[ZoneSystem.instance.GetZone(player.transform.position)].m_location.m_prefabName;
+							string locName = dic[val].m_location.m_prefabName;
 							GUILayout.Label(locName, style);
 						}
 						else
@@ -324,8 +324,14 @@ namespace OdinPlus
 		}
 		public static void Monster()
 		{
+			// AddStatusEffect expects status effect name (string), not an int
+			// Get the key from MonsterSEList using index 4 (e.g., "MonsterAttackAMP5")
 			var a = GameObject.Instantiate(ZNetScene.instance.GetPrefab("Fenring"), Player.m_localPlayer.transform.position + Vector3.up + Vector3.forward * 2, Quaternion.identity);
-			Traverse.Create(a.GetComponent<Humanoid>()).Field<SEMan>("m_seman").Value.AddStatusEffect(OdinSE.MonsterSEList.ElementAt(4).Key);
+			if (OdinSE.MonsterSEList.Count > 4)
+			{
+				var seKey = OdinSE.MonsterSEList.Keys.ElementAt(4);
+				Traverse.Create(a.GetComponent<Humanoid>()).Field<SEMan>("m_seman").Value.AddStatusEffect(seKey);
+			}
 		}
 		#endregion Task
 

@@ -192,17 +192,8 @@ namespace OdinPlus
 				OdinPlus.Init();
 			}
 		}
-		[HarmonyPatch(typeof(Console), "InputText")]
-		private static class Patch_Console_InputText
-		{
-			private static void Prefix()
-			{
-				if (DevTool.IsIns())
-				{
-					DevTool.InputCMD(global::Console.instance.m_input.text);
-				}
-			}
-		}
+		// TODO: Valheim 0.221.12 - Console patch removed (GuiInputField dependency, debug-only code)
+		// Chat patch (below) already intercepts all player commands via /
 		[HarmonyPatch(typeof(Chat), "InputText")]
 		private static class Patch_Chat_InputText
 		{

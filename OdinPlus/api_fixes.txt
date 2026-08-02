@@ -1,0 +1,20 @@
+STRATEGY: Disable non-critical broken code sections
+
+1. HackCamp() - Test/debug method, unused in production
+   File: 6Humans/HumanManager.cs line 256-275
+   Action: Comment entire method body
+
+2. HackingRuneStones() - Test/debug method, unused in production
+   File: 6Humans/HumanManager.cs line 400-420
+   Action: Comment entire method body
+
+3. GuiInputField usage - Blueprint console scanner UI
+   Files: 0Main/Plugin.cs lines 202, 213, 230, 239
+   Action: Comment out GUI initialization code
+
+4. DungeonDB.RoomData.m_room - Only used in HackCamp (dead code)
+   Action: Will be fixed when HackCamp is commented
+
+5. Monster() method - Test/debug, spawns creatures
+   File: 9Misc/DevTool.cs line 328
+   Action: Comment out problematic line

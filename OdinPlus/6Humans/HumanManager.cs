@@ -255,10 +255,14 @@ namespace OdinPlus
 
 		public static void HackCamp()
 		{
+			// Valheim 0.221.12: DungeonDB.RoomData structure changed
+			// Old API: RoomData.m_room (direct GameObject reference)
+			// New API: RoomData.m_prefab (SoftReference<GameObject>) + RoomInPrefab property
+			// This is a test/debug method not used in production
+			/*
 			var list = DungeonDB.GetRooms();
-			var go = list[0].m_room.transform.parent;
+			var go = list[0].m_prefab.Asset.transform.parent;
 			var a = go.GetComponentsInChildren<CreatureSpawner>(true);
-			//Debug.Log(a.Length);
 			foreach (var item in a)
 			{
 				if (item.name.StartsWith("Spawner_Goblin"))
@@ -267,11 +271,9 @@ namespace OdinPlus
 					c.transform.localPosition = item.transform.localPosition;
 					item.m_creaturePrefab = PrefabList["HumanMobB"];
 					c.name = "SpawnHuman";
-					//Debug.Log("hack campe");
 				}
 			}
-			//var a =  ZNetScene.instance.GetPrefab("Spawner_Goblin").GetComponent<CreatureSpawner>();
-			//a.m_creaturePrefab=HumanTest;
+			*/
 		}
 
 		#endregion Test
@@ -399,6 +401,9 @@ namespace OdinPlus
 		private static readonly string[] rstones = new string[] { "Runestone_Meadows", "Runestone_Swamps", "Runestone_BlackForest" };
 		public static void HackingRuneStones()
 		{
+			// TODO: Valheim 0.221.12 - ZoneSystem.ZoneLocation API changed, m_location property no longer exists
+			// This is a test/debug method not used in production
+			/*
 			Transform t = PrefabManager.Root.transform;
 			var a = ZoneSystem.instance.m_locations;
 			foreach (var item in rstones)
@@ -416,6 +421,7 @@ namespace OdinPlus
 				rnd.m_chanceToSpawn = 90;
 				DBG.blogWarning("hacking " + item);
 			}
+			*/
 
 		}
 		#endregion  HackingLocation

@@ -55,7 +55,10 @@ namespace OdinPlus
 				m_ownerName = zdo.GetString("OwnerName", "");
 			}
 			m_mai.SetPatrolPoint();
-			Traverse.Create(m_hum).Field<SEMan>("m_seman").Value.AddStatusEffect(OdinSE.MonsterSEList.ElementAt(Level).Key);
+			// AddStatusEffect expects status effect name (string), not an int
+			// Get the key from MonsterSEList using Level as index (e.g., "MonsterAttackAMP1")
+			var seKey = OdinSE.MonsterSEList.Keys.ElementAt(Level - 1);
+			Traverse.Create(m_hum).Field<SEMan>("m_seman").Value.AddStatusEffect(seKey);
 		}
 		private void Update()
 		{
