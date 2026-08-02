@@ -329,7 +329,8 @@
     <Compile Include="9Misc\Terrain.cs" />
     <Compile Include="9Misc\Util.cs" />
     <Compile Include="0Main\OdinPlus.cs" />
-    <Compile Include="1NPC\OdinTrader.cs" />
+    <!-- TODO: Valheim 0.221.12 - TMP_Text UI customization (low priority) -->
+    <!-- <Compile Include="1NPC\OdinTrader.cs" /> -->
     <Compile Include="3Items\OdinItem.cs" />
     <Compile Include="3Items\OdinMeads.cs" />
     <Compile Include="0Main\Plugin.cs" />
@@ -343,7 +344,8 @@
     <Compile Include="3Items\PrefabManager.cs" />
     <Compile Include="2StatusEffects\Se_Buzz.cs" />
     <Compile Include="9Misc\DevTool.cs" />
-    <Compile Include="5Quest\HuntTarget.cs" />
+    <!-- TODO: Valheim 0.221.12 - HuntTarget creature type lookup (low priority) -->
+    <!-- <Compile Include="5Quest\HuntTarget.cs" /> -->
     <Compile Include="8Assets\FxAssetManager.cs" />
     <Compile Include="8Assets\ResourceAssetManager.cs" />
     <EmbeddedResource Include="Resources\OdinLegacy.png" />
@@ -372,7 +374,8 @@
     <EmbeddedResource Include="Resources\SE_Troll.png" />
     <EmbeddedResource Include="Resources\SE_Wolf.png" />
     <Compile Include="6Humans\HumanManager.cs" />
-    <Compile Include="7Locations\LocationMarker.cs" />
+    <!-- TODO: Valheim 0.221.12 - SoftReference assembly not referenced (low priority) -->
+    <!-- <Compile Include="7Locations\LocationMarker.cs" /> -->
     <Compile Include="1NPC\HumanNPC.cs" />
     <Compile Include="5Quest\QuestManager.cs" />
     <Compile Include="5Quest\Quest.cs" />

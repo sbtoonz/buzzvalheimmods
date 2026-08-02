@@ -10,7 +10,8 @@ namespace OdinPlus
 		public static GameObject Root;
 		public static GameObject terrain;
 		public static OdinGod m_odinGod;
-		public static OdinTrader m_odinPot;
+		// TODO: Valheim 0.221.12 - OdinTrader disabled (TMP_Text dependency)
+		// public static OdinTrader m_odinPot;
 		public static OdinShaman m_odinShaman;
 		public static GameObject RavenPrefab;
 		public static OdinMunin m_odinMunin;
@@ -128,7 +129,8 @@ namespace OdinPlus
 		}
 		private static void InitOdinPot()
 		{
-
+			// TODO: Valheim 0.221.12 - OdinTrader disabled (TMP_Text UI dependency)
+			/*
 			var pfire = ZNetScene.instance.GetPrefab("fire_pit");
 			var pcaul = ZNetScene.instance.GetPrefab("piece_cauldron");
 			var fire = CopyChildren(pfire);
@@ -157,6 +159,7 @@ namespace OdinPlus
 					m_price = OdinData.MeadsValue[item.Key]
 				});
 			}
+			*/
 		}
 		private static void InitOdinChest()
 		{
