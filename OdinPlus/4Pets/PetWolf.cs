@@ -25,7 +25,7 @@ namespace OdinPlus
 			character.m_onDeath = (Action)Delegate.Combine(new Action(this.OnDeath),character.m_onDeath);
 
 			tame = this.GetComponent<Tameable>();
-			tame.Tame();
+			tame.SetTamed(true);
 			tame.m_fedDuration = 1800;
 			Traverse.Create(tame).Method("ResetFeedingTimer").GetValue();
 
@@ -56,7 +56,7 @@ namespace OdinPlus
 		}
 		public void SecondaryInteract(Humanoid user)
 		{
-			container.Interact(user, false);
+			container.Interact(user, false, false);
 		}
 
 		#endregion Mono

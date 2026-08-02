@@ -67,7 +67,7 @@ namespace OdinPlus
 			Chat.instance.SetNpcText(m_talker, Vector3.up * 1.5f, 60f, 5, tname, text, false);
 			m_ani.SetTrigger(emote);
 		}
-		public override bool Interact(Humanoid user, bool hold)
+		public override bool Interact(Humanoid user, bool hold, bool alt)
 		{
 			if (hold)
 			{

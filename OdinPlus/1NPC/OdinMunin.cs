@@ -81,7 +81,7 @@ namespace OdinPlus
 		#endregion Feature
 
 		#region Val
-		public override bool Interact(Humanoid user, bool hold)
+		public override bool Interact(Humanoid user, bool hold, bool alt)
 		{
 			if (hold)
 			{

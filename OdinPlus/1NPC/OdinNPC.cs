@@ -19,7 +19,7 @@ namespace OdinPlus
 			var tname=Localization.instance.Localize(m_name);
 			Chat.instance.SetNpcText(m_talker, Vector3.up * 1.5f, 60f, 5, tname, text, false);
 		}
-		public virtual bool Interact(Humanoid user, bool hold)
+		public virtual bool Interact(Humanoid user, bool hold, bool alt = false)
 		{
 			if (hold)
 			{

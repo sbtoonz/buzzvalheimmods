@@ -94,7 +94,7 @@ namespace OdinPlus
 
 		#endregion
 		#region valheim
-		public override bool Interact(Humanoid user, bool hold)
+		public override bool Interact(Humanoid user, bool hold, bool alt)
 		{
 			if (hold)
 			{

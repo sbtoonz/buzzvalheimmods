@@ -15,7 +15,7 @@ namespace OdinPlus
 			tame = this.GetComponent<Tameable>();
 			tame.m_commandable = true;
 			tame.m_fedDuration = 300;
-			tame.Tame();
+			tame.SetTamed(true);
 			Traverse.Create(tame).Method("ResetFeedingTimer").GetValue();
 			Character character = this.GetComponent<Character>();
 			character.m_onDeath = (Action)Delegate.Combine(new Action(this.OnDestroyed), character.m_onDeath);

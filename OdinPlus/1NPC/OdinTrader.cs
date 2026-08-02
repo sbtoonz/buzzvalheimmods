@@ -30,7 +30,7 @@ namespace OdinPlus
 		{
 			return m_name;
 		}
-		public new bool Interact(Humanoid user, bool hold)
+		public new bool Interact(Humanoid user, bool hold, bool alt)
 		{
 			if (hold)
 			{
