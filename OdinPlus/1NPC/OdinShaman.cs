@@ -10,7 +10,10 @@ namespace OdinPlus
 		//private static bool isInit = false;
 		public Dictionary<string, GoodsDate> GoodsList = new Dictionary<string, GoodsDate>{
 		{"TrophyFrostTroll", new GoodsDate { Good = "ScrollTroll", Value = 3 }},
-		{"TrophyWolf", new GoodsDate { Good = "ScrollWolf", Value = 3 }}
+		{"TrophyWolf", new GoodsDate { Good = "ScrollWolf", Value = 3 }},
+		{"TrophyFenring", new GoodsDate { Good = "ScrollFenring", Value = 3 }},
+		{"TrophyGoblinBruteBrosBrute", new GoodsDate { Good = "ScrollBrute", Value = 5 }},
+		{"TrophyDvergr", new GoodsDate { Good = "ScrollDverger", Value = 4 }}
 		};
 		public struct GoodsDate
 		{
@@ -28,32 +31,15 @@ namespace OdinPlus
 		}
 
 		#endregion  Mono
-		private void Start()
-		{
-			var prefab = this.gameObject;
-			ZNetView znv = prefab.GetComponent<ZNetView>();
-			ZDO zdo = prefab.GetComponent<ZNetView>().GetZDO();
-			DestroyImmediate(prefab.GetComponent<ZNetView>());
-			DestroyImmediate(prefab.GetComponent<ZSyncAnimation>());
-			DestroyImmediate(prefab.GetComponent<ZSyncTransform>());
-			DestroyImmediate(prefab.GetComponent<MonsterAI>());
-			DestroyImmediate(prefab.GetComponent<VisEquipment>());
-			DestroyImmediate(prefab.GetComponent<CharacterDrop>());
-			DestroyImmediate(prefab.GetComponent<Humanoid>());
-			DestroyImmediate(prefab.GetComponent<FootStep>());
-			DestroyImmediate(prefab.GetComponent<Rigidbody>());
-			foreach (var comp in gameObject.GetComponents<Component>())
-			{
-				if (!(comp is Transform) && !(comp is OdinShaman)&& !(comp is CapsuleCollider))
-				{
-					DestroyImmediate(comp);
-				}
-			}
-			var a = Traverse.Create(ZNetScene.instance).Field<Dictionary<ZDO, ZNetView>>("m_instances").Value;
-			a.Remove(zdo);
-			ZDOMan.instance.DestroyZDO(zdo);
-			prefab.gameObject.transform.Rotate(0, 30f, 0);
-		}
+		// NOTE: component stripping / ZNetView-ZDO cleanup / final placement used to happen
+		// here in Start(), but that's a deferred MonoBehaviour lifecycle callback that ran
+		// one phase too late - other original components (MonsterAI/Character/ZSyncTransform)
+		// could run their own Awake/Start logic first and reposition/reorient the clone using
+		// real world data before this cleanup ever got a chance to run. This is now done
+		// synchronously in NpcManager.InitShaman() immediately after Instantiate, using the
+		// same ZNetView.m_forceDisableInit guard pattern as InitOdinGod(), which also prevents
+		// a stale ZNetView from ever being registered into ZNetScene.m_instances in the first
+		// place (that dictionary is never cleaned up by ZNetView.OnDestroy() itself).
 		//remvoe
 		bool IsAssemblyExists(string assemblyName)
 		{
@@ -79,10 +65,9 @@ namespace OdinPlus
 		public override string GetHoverText()
 		{
 			string n = string.Format("<color=lightblue><b>{0}</b></color>", m_name);
-			//n += string.Format("\n<color=green><b>Credits:{0}</b></color>", OdinData.Credits);
-			//n += "\n[<color=yellow><b>$KEY_Use</b></color>] $op_buy";
+			n += "\n<color=cyan>Summon 5 Creatures:</color>";
+			n += "\n  <color=white>Troll, Wolf, Fenring, Brute, Dverger</color>";
 			n += "\n[<color=yellow><b>1-8</b></color>]$op_shaman_offer";
-			//n += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_shaman_use", Plugin.KS_SecondInteractkey.Value.MainKey.ToString());
 			return Localization.instance.Localize(n);
 		}
 		public override string GetHoverName()
@@ -91,7 +76,8 @@ namespace OdinPlus
 		}
 		public override bool UseItem(Humanoid user, ItemDrop.ItemData item)
 		{
-			var name = item.m_dropPrefab.name;
+			var name = item.m_dropPrefab.name.Replace("(Clone)", "").Trim();
+			DBG.blogInfo($"[OdinShaman] UseItem: '{name}' (original: '{item.m_dropPrefab.name}', shared: '{item.m_shared.m_name}')");
 			if (GoodsList.ContainsKey(name))
 			{
 				var gd = GoodsList[name];
@@ -110,6 +96,7 @@ namespace OdinPlus
 				Say("$op_shaman_notenough");
 				return true;
 			}
+			DBG.blogWarning($"[OdinShaman] Item '{name}' not in GoodsList. Available: {string.Join(", ", GoodsList.Keys)}");
 			Say("$op_shaman_no");
 			return true;
 		}

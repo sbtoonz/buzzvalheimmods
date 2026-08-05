@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace OdinPlus
 {
@@ -57,7 +58,16 @@ namespace OdinPlus
 			var icon = __instance.m_coinText.transform.parent.GetChild(0).GetComponent<Image>();
 			sell.gameObject.SetActive(!set);
 			icon.sprite = !set ? OdinPlus.CoinsIcon : OdinPlus.OdinCreditIcon;
-			GameObject.Find("/_GameMain/GUI/PixelFix/IngameGui(Clone)/Store_Screen/Store/topic").GetComponent<Text>().text = Localization.instance.Localize(set ? "OdinStore" : @"$store_topic");
+			// Was: GameObject.Find("/_GameMain/GUI/PixelFix/IngameGui(Clone)/Store_Screen/Store/topic")
+			//      .GetComponent<Text>() - both the absolute path ("Store_Screen" no longer exists)
+			// and the component type (migrated to TextMeshProUGUI) are stale for 0.221.12.
+			// Find relative to the live StoreGui instance instead of a brittle absolute path.
+			var topic = go.transform.Find("Store/topic");
+			var topicText = topic != null ? topic.GetComponent<TMP_Text>() : null;
+			if (topicText != null)
+			{
+				topicText.text = Localization.instance.Localize(set ? "OdinStore" : @"$store_topic");
+			}
 		}
 
 		#endregion

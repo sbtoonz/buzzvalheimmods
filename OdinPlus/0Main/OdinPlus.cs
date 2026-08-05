@@ -41,6 +41,9 @@ namespace OdinPlus
 		public static List<Sprite> OdinSEIcon = new List<Sprite>();
 		public static Sprite TrollHeadIcon;
 		public static Sprite WolfHeadIcon;
+		public static Sprite FenringHeadIcon;
+		public static Sprite BruteHeadIcon;
+		public static Sprite DvergerHeadIcon;
 		public static Sprite CoinsIcon;
 		public static Sprite OdinLegacyIcon;
 
@@ -59,6 +62,9 @@ namespace OdinPlus
 			
 
 			Plugin.preODB = (Action<ObjectDB>)Delegate.Combine(Plugin.preODB, (Action<ObjectDB>)PreODB);
+			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)FactionManager.RegisterRpc);
+			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)FactionQuestManager.RegisterRpc);
+			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)BlueprintConfig.RegisterRpc);
 
 			Root.AddComponent<OdinData>();
 			Root.AddComponent<QuestManager>();
@@ -71,12 +77,12 @@ namespace OdinPlus
 		#region Patch
 		public static void Init()
 		{
-			initAssets();
+			// Don't call initAssets() here - ObjectDB might not be ready yet
+			// It's deferred to PostODB() when ObjectDB.instance is guaranteed available
 			Root.AddComponent<LocationManager>();
 			Root.AddComponent<OdinMeads>();
 			Root.AddComponent<OdinItem>();
-// TODO: Pet system disabled for 0.221.12 API compatibility
-// 			Root.AddComponent<PetManager>();
+			Root.AddComponent<PetManager>();
 			Root.AddComponent<PrefabManager>();
 			Root.AddComponent<FxAssetManager>();
 			isInit = true;
@@ -87,6 +93,8 @@ namespace OdinPlus
 		}
 		public static void PostODB()
 		{
+			// Load assets now that ObjectDB is ready
+			initAssets();
 			ValRegister(ObjectDB.instance);
 		}
 		public static void PreZNS(ZNetScene zns)
@@ -103,11 +111,10 @@ namespace OdinPlus
 				{
 					FxAssetManager.Init();
 				}
-				// TODO: Pet system disabled for 0.221.12 API compatibility
-				// if (!PetManager.isInit)
-				// {
-				//     PetManager.Init();
-				// }
+				if (!PetManager.isInit)
+				{
+					PetManager.Init();
+				}
 				if (!PrefabManager.isInit)
 				{
 					PrefabManager.Init();
@@ -123,6 +130,37 @@ namespace OdinPlus
 
 			LocationManager.Init();
 			OdinPlus.InitNPC();
+			// Runs continuously from now on so vanilla's build-hud strip gets hidden the moment
+			// BlueprintTool is equipped, not only after the player first opens the Browser.
+			BlueprintBrowser.Init();
+
+			// F7 faction reputation overlay - documented as an existing feature but never actually
+			// implemented; must be initialized eagerly so F7 works immediately without requiring any
+			// other prior interaction.
+			FactionGui.Init();
+
+			// Gameplay YAML - server-authoritative. Load the local file first (works standalone and as a
+			// fallback), then either broadcast (server, covers the common "server boots before players
+			// join" case) or request the server's copy (client, covers a player joining an already-running
+			// server). None of blueprints/faction config/faction quests were actually loaded or synced
+			// before this pass despite the sync-capable code existing.
+			BlueprintConfig.LoadFromFile();
+			FactionManager.LoadConfig(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_config.yaml"));
+			FactionQuestManager.LoadQuests(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_quests.yaml"));
+
+			if (ZNet.instance.IsServer())
+			{
+				BlueprintConfig.BroadcastSync();
+				FactionManager.BroadcastSync();
+				FactionQuestManager.BroadcastSync();
+			}
+			else
+			{
+				BlueprintConfig.RequestSyncFromServer();
+				FactionManager.RequestSyncFromServer();
+				FactionQuestManager.RequestSyncFromServer();
+			}
+
 			if (ZNet.instance.IsDedicated() && ZNet.instance.IsServer())
 			{
 				OdinData.loadOdinData(ZNet.instance.GetWorldName());
@@ -135,8 +173,7 @@ namespace OdinPlus
 		}
 		public static void Clear()
 		{
-// TODO: Pet system disabled for 0.221.12 API compatibility
-// 			PetManager.Clear();
+			PetManager.Clear();
 			QuestManager.instance.Clear();
 			LocationManager.Clear();
 			Destroy(Root.GetComponent<NpcManager>());
@@ -152,14 +189,64 @@ namespace OdinPlus
 		#region Assets
 		public static void initAssets()
 		{
-			OdinCreditIcon = ObjectDB.instance.GetItemPrefab("HelmetOdin").GetComponent<ItemDrop>().m_itemData.m_shared.m_icons[0];
-			OdinSEIcon.Add(OdinCreditIcon);
-			TrollHeadIcon = ObjectDB.instance.GetItemPrefab("TrophyFrostTroll").GetComponent<ItemDrop>().m_itemData.m_shared.m_icons[0];
-			WolfHeadIcon = ObjectDB.instance.GetItemPrefab("TrophyWolf").GetComponent<ItemDrop>().m_itemData.m_shared.m_icons[0];
-			CoinsIcon = ObjectDB.instance.GetItemPrefab("Coins").GetComponent<ItemDrop>().m_itemData.m_shared.m_icons[0];
+			if (ObjectDB.instance == null)
+			{
+				DBG.blogError("[OdinPlus] initAssets called but ObjectDB.instance is null");
+				return;
+			}
+
+			var helmetOdin = ObjectDB.instance.GetItemPrefab("HelmetOdin");
+			if (helmetOdin != null)
+			{
+				var drop = helmetOdin.GetComponent<ItemDrop>();
+				if (drop != null && drop.m_itemData.m_shared.m_icons.Length > 0)
+				{
+					OdinCreditIcon = drop.m_itemData.m_shared.m_icons[0];
+					OdinSEIcon.Add(OdinCreditIcon);
+				}
+			}
+
+			if (OdinCreditIcon == null)
+			{
+				DBG.blogWarning("[OdinPlus] HelmetOdin icon not found, using fallback");
+				// Create a simple fallback sprite or load from embedded resources
+			}
+
+			TrollHeadIcon = GetTrophyIcon("TrophyFrostTroll");
+			WolfHeadIcon = GetTrophyIcon("TrophyWolf");
+			FenringHeadIcon = GetTrophyIcon("TrophyFenring");
+			BruteHeadIcon = GetTrophyIcon("TrophyGoblinBruteBrosBrute");
+			DvergerHeadIcon = GetTrophyIcon("TrophyDvergr");
+
+			var coins = ObjectDB.instance.GetItemPrefab("Coins");
+			if (coins != null)
+			{
+				var coinDrop = coins.GetComponent<ItemDrop>();
+				if (coinDrop != null && coinDrop.m_itemData.m_shared.m_icons.Length > 0)
+				{
+					CoinsIcon = coinDrop.m_itemData.m_shared.m_icons[0];
+				}
+			}
+
 			OdinLegacyIcon = Util.LoadSpriteFromTexture(Util.LoadTextureRaw(Util.GetResource(Assembly.GetCallingAssembly(), "OdinPlus.Resources.OdinLegacy.png")), 100f);
 			//AddIcon("explarge", 0);
+
+			// Try loading MeadTasty icon, but don't fail if it doesn't exist
+			// (vanilla meads might have different names in 0.221.12)
 			AddValIcon("MeadTasty", 0);
+			if (OdinMeadsIcons.Count == 0)
+			{
+				// Fallback: try other common mead names
+				AddValIcon("MeadHealthMedium", 0);
+			}
+		}
+		private static Sprite GetTrophyIcon(string trophyPrefab)
+		{
+			var prefab = ObjectDB.instance.GetItemPrefab(trophyPrefab);
+			if (prefab == null) return OdinCreditIcon;
+			var drop = prefab.GetComponent<ItemDrop>();
+			if (drop == null || drop.m_itemData.m_shared.m_icons.Length == 0) return OdinCreditIcon;
+			return drop.m_itemData.m_shared.m_icons[0];
 		}
 		public static void AddIcon(string name, int list)
 		{
@@ -168,8 +255,23 @@ namespace OdinPlus
 		}
 		public static void AddValIcon(string name, int list)
 		{
-			Sprite a = ObjectDB.instance.GetItemPrefab(name).GetComponent<ItemDrop>().m_itemData.m_shared.m_icons[0];
+			var prefab = ObjectDB.instance.GetItemPrefab(name);
+			if (prefab == null)
+			{
+				DBG.blogWarning($"[OdinPlus] AddValIcon: Item '{name}' not found in ObjectDB");
+				return;
+			}
+
+			var drop = prefab.GetComponent<ItemDrop>();
+			if (drop == null || drop.m_itemData.m_shared.m_icons.Length == 0)
+			{
+				DBG.blogWarning($"[OdinPlus] AddValIcon: Item '{name}' has no icon");
+				return;
+			}
+
+			Sprite a = drop.m_itemData.m_shared.m_icons[0];
 			OdinMeadsIcons.Add(name, a);
+			DBG.blogInfo($"[OdinPlus] AddValIcon: Loaded icon for '{name}'");
 		}
 		#endregion Assets
 
@@ -256,8 +358,6 @@ namespace OdinPlus
 			Root.AddComponent<OdinSE>();
 			Root.AddComponent<OdinMeads>();
 			Root.AddComponent<OdinItem>();
-// TODO: Pet system disabled for 0.221.12 API compatibility
-// 			Root.AddComponent<PetManager>();
 			Root.AddComponent<PrefabManager>();
 			Root.AddComponent<QuestManager>();
 			Root.AddComponent<LocationManager>();

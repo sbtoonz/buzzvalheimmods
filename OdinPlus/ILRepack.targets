@@ -9,7 +9,6 @@
     </PropertyGroup>
     <ItemGroup>
       <InputAssemblies Include="$(OutputPath)YamlDotNet.dll" />
-      <InputAssemblies Include="$(OutputPath)Newtonsoft.Json.dll" />
     </ItemGroup>
     <Message Text="Merging assemblies with ILRepack..." Importance="High" />
     <Exec Command="$(ILRepack) /internalize /out:$(OutputAssembly) $(InputAssemblies) @(InputAssemblies, ' ')" WorkingDirectory="$(WorkingDirectory)" />

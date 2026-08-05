@@ -22,6 +22,9 @@ namespace OdinPlus
 			initBuzzSE();
 			initTrollSE();
 			initWolfSE();
+			initFenringSE();
+			initBruteSE();
+			initDvergerSE();
 			initValSE();
 
 			SetupMonsterSe();
@@ -45,28 +48,39 @@ namespace OdinPlus
 		#region Pet_SE
 		private void initTrollSE()
 		{
-			var se = ScriptableObject.CreateInstance<SE_SumonPet>();
-			se.name = "SE_Troll";
-			se.m_icon = Util.LoadResouceIcon("SE_Troll");
-			se.m_name = "$op_ScrollTroll_name";
-			se.m_tooltip = "$op_ScrollTroll_tooltip";
-			se.m_cooldownIcon = true;
-			se.m_ttl = 600;
-			se.PetName = "TrollPet";
-			SElist.Add("ScrollTroll", se);
+			CreatePetSE("ScrollTroll", "SE_Troll", "$op_ScrollTroll_name", "$op_ScrollTroll_tooltip", 600, "TrollPet");
 		}
 		private void initWolfSE()
 		{
-			var se = ScriptableObject.CreateInstance<SE_SumonPet>();
-			se.name = "SE_Wolf";
-			se.m_icon = Util.LoadResouceIcon("SE_Wolf");
-			se.m_name = "$op_ScrollWolf_name";
-			se.m_tooltip = "$op_ScrollWolf_tooltip";
-			se.m_cooldownIcon = true;
-			se.m_ttl = 1800;
-			se.PetName = "WolfPet";
-			SElist.Add("ScrollWolf", se);
+			CreatePetSE("ScrollWolf", "SE_Wolf", "$op_ScrollWolf_name", "$op_ScrollWolf_tooltip", 1800, "WolfPet");
 		}
+		private void initFenringSE()
+		{
+			CreatePetSE("ScrollFenring", "SE_Fenring", "$op_ScrollFenring_name", "$op_ScrollFenring_tooltip", 600, "FenringPet");
+		}
+		private void initBruteSE()
+		{
+			CreatePetSE("ScrollBrute", "SE_Brute", "$op_ScrollBrute_name", "$op_ScrollBrute_tooltip", 600, "BrutePet");
+		}
+		private void initDvergerSE()
+		{
+			CreatePetSE("ScrollDverger", "SE_Dverger", "$op_ScrollDverger_name", "$op_ScrollDverger_tooltip", 1800, "DvergerPet");
+		}
+		private void CreatePetSE(string scrollName, string seName, string displayName, string tooltip, float ttl, string petName)
+		{
+			var se = ScriptableObject.CreateInstance<SE_SumonPet>();
+			se.name = seName;
+			try { se.m_icon = Util.LoadResouceIcon(seName); } catch { }
+			if (se.m_icon == null) se.m_icon = OdinPlus.OdinCreditIcon;
+			se.m_name = displayName;
+			se.m_tooltip = tooltip;
+			se.m_cooldownIcon = true;
+			se.m_ttl = ttl;
+			se.PetName = petName;
+			SElist.Add(scrollName, se);
+		}
+		#endregion Pet_SE
+
 		#region Buzz_SE
 		private void initBuzzSE()
 		{
@@ -90,8 +104,6 @@ namespace OdinPlus
 			//notice
 		}
 		#endregion Buzz_SE
-
-		#endregion
 
 		#region Val_SE
 		private void initValSE()

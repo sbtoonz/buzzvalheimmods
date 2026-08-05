@@ -74,6 +74,7 @@ namespace OdinPlus
 				return;
 			}
 			MarkList.Remove(ID);
+			DubList.Remove(ID);
 		}
 		#region feature
 		public CtnInfo GetCtnInfo()
@@ -159,38 +160,6 @@ namespace OdinPlus
 			}
 		}
 		#endregion Start
-
-		#region Debug
-		public void WatchMe()
-		{
-			GameCamera.instance.transform.localPosition = transform.position + Vector3.forward * 1;
-		}
-		public void DrawBall()
-		{
-			var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-			go.transform.position = transform.position;
-			go.transform.localScale = Vector3.one * 3;
-			go.GetComponent<Renderer>().material.color = Color.red;
-			go.name = ("LocMark");
-			go.transform.SetParent(transform);
-		}
-		public void test()
-		{
-			var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-			Vector3 pos;
-			Quaternion rot;
-			var info = GetCtnInfo();
-			pos = info.Pos;
-			rot = info.Rot;
-			go.transform.localScale = Vector3.one;
-			go.transform.position = pos;
-			go.transform.rotation = rot;
-			go.GetComponent<Renderer>().material.color = Color.red;
-			go.AddComponent<Light>();
-			go.name = ("Fake Chest" + ID);
-			GameCamera.instance.transform.localPosition = pos;
-		}
-		#endregion Debug
 
 		//EndClass
 	}

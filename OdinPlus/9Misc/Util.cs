@@ -46,19 +46,31 @@ namespace OdinPlus
 			manifestResourceStream.Read(array, 0, (int)manifestResourceStream.Length);
 			return array;
 		}
+		private static MethodInfo _loadImageMethod;
 		public static Texture2D LoadTextureRaw(byte[] file)
 		{
-			bool flag = Enumerable.Count<byte>(file) > 0;
-			if (flag)
+			// Called via reflection instead of a direct UnityEngine.ImageConversionModule
+			// reference: that assembly's netstandard 2.1 dependency is newer than this
+			// project's netstandard 2.0 reference and fails to compile (CS1705).
+			if (_loadImageMethod == null)
 			{
-				Texture2D texture2D = new Texture2D(2, 2);
-				bool flag2 = ImageConversion.LoadImage(texture2D, file);
-				if (flag2)
+				var imageConversionType = AppDomain.CurrentDomain.GetAssemblies()
+					.SelectMany(a => { try { return a.GetTypes(); } catch { return Type.EmptyTypes; } })
+					.FirstOrDefault(t => t.FullName == "UnityEngine.ImageConversion");
+				_loadImageMethod = imageConversionType?.GetMethod("LoadImage", new[] { typeof(Texture2D), typeof(byte[]) });
+				if (_loadImageMethod == null)
 				{
-					return texture2D;
+					DBG.blogWarning("[Util] UnityEngine.ImageConversion.LoadImage not found via reflection - embedded icons will not load");
+					return null;
 				}
 			}
-			return null;
+			Texture2D texture2D = new Texture2D(2, 2);
+			bool ok = (bool)_loadImageMethod.Invoke(null, new object[] { texture2D, file });
+			if (!ok)
+			{
+				return null;
+			}
+			return texture2D;
 		}
 		public static Sprite LoadSpriteFromTexture(Texture2D SpriteTexture, float PixelsPerUnit = 100f)
 		{
@@ -79,6 +91,49 @@ namespace OdinPlus
 			return Util.LoadSpriteFromTexture(Util.LoadTextureRaw(Util.GetResource(Assembly.GetCallingAssembly(), "OdinPlus.Resources." + name + ".png")), 100f);
 		}
 		#endregion LoadResource
+
+		#region GhostMaterial
+		// Root cause of the "pink selection box": GameObject.CreatePrimitive() assigns Unity's built-in
+		// default primitive material, whose shader is not guaranteed to be included in Valheim's shipped
+		// build (custom SRP - most Standard/Legacy shader variants are stripped). Manually poking
+		// Standard-shader-only properties (_Color, _SrcBlend, _Metallic, ALPHABLEND_ON keywords, etc.) on
+		// a stripped/"error" shader just renders magenta/pink regardless of the values set.
+		// Fix: build materials from a shader that Valheim's build is GUARANTEED to include, because the
+		// engine itself depends on it - Unity's built-in UGUI Canvas system (which Valheim's entire UI
+		// uses, confirmed elsewhere in this mod's TMPro work) always ships "UI/Default", and Unity's
+		// sprite renderer system always ships "Sprites/Default". Both support simple alpha blending via
+		// the material's color alpha, which is exactly what a translucent selection/ghost overlay needs.
+		private static Shader _cachedGhostShader;
+		private static bool _ghostShaderLogged;
+		public static Material CreateGhostMaterial(Color color)
+		{
+			if (_cachedGhostShader == null)
+			{
+				_cachedGhostShader = Shader.Find("Sprites/Default") ?? Shader.Find("UI/Default") ?? Shader.Find("Standard");
+				if (!_ghostShaderLogged)
+				{
+					_ghostShaderLogged = true;
+					if (_cachedGhostShader == null)
+					{
+						DBG.blogWarning("[Util] No known-safe transparent shader found (Sprites/Default, UI/Default, Standard all missing) - ghost/selection visuals will render pink");
+					}
+					else
+					{
+						DBG.blogInfo("[Util] Ghost/selection material shader resolved to: " + _cachedGhostShader.name);
+					}
+				}
+			}
+			if (_cachedGhostShader == null)
+			{
+				return null;
+			}
+			var mat = new Material(_cachedGhostShader);
+			mat.color = color;
+			if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+			mat.renderQueue = 3000;
+			return mat;
+		}
+		#endregion GhostMaterial
 		#region Reflection
 		public static object InvokePrivate(object instance, string name, object[] args = null)
 		{

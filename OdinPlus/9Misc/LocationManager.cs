@@ -188,6 +188,7 @@ namespace OdinPlus
 		}
 		private void Rpc_GetStartPos(long sender)
 		{
+			if (!ZNet.instance.IsServer()) return;
 			DBG.blogWarning("Server got odin postion request");
 			if (Plugin.CFG_OdinPosition.Value != Vector3.zero)
 			{
@@ -206,11 +207,13 @@ namespace OdinPlus
 		}
 		public static void RPC_SendServerFOP(long sender)
 		{
+			if (!ZNet.instance.IsServer()) return;
 			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "RPC_ReceiveServerFOP", new object[] { Plugin.CFG_ForceOdinPosition.Value });
 			DBG.blogWarning("Server Sent FOP:" + Plugin.CFG_ForceOdinPosition.Value);
 		}
 		public static void RPC_ReceiveServerFOP(long sender, bool result)
 		{
+			if (ZNet.instance.IsServer()) return;
 			DBG.blogWarning("Client Got FOP:" + result);
 			Plugin.Set_FOP = result;
 		}
@@ -228,6 +231,7 @@ namespace OdinPlus
 		//OPT definitely need a thread pool !! struct[] quenee //notice
 		public static void RPC_ServerFindLocation(long sender, string sender_locName, Vector3 sender_pos)
 		{
+			if (!ZNet.instance.IsServer()) return;
 			var _id = "0_0";
 			var _pos = Vector3.zero;
 			if (FindClosestLocation(sender_locName, sender_pos, out _id, out _pos))

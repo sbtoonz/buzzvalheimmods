@@ -39,23 +39,18 @@ namespace OdinPlus
 			instance = this;
 			MyQuests = new Dictionary<string, Quest>();
 			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)ReigsterRpc);
-		}
-		private void Update()
-		{
-			CheckPlace();
+			InvokeRepeating(nameof(CheckPlace), 1f, 0.5f);
 		}
 		private void CheckPlace()
 		{
 			var lmList = LocationMarker.MarkList;
 			foreach (var item in MyQuests.Keys)
 			{
-				if (lmList.ContainsKey(item))
+				if (lmList.TryGetValue(item, out var lm))
 				{
-					var lm = lmList[item];
-					var quest = MyQuests[item];
-					QuestProcesser.Create(quest).Place(lm);
+					QuestProcesser.Create(MyQuests[item]).Place(lm);
+					CancelInvoke(nameof(CheckPlace));
 					return;
-					//HELP Do i need yield return? but will Lead to a new questprocser(Multi-thread)
 				}
 			}
 		}

@@ -11,7 +11,37 @@
 
 ---
 
-## Current Status (2026-08-01)
+## Current Status (2026-08-02)
+
+### ⚠️ Documentation accuracy warning
+This file has repeatedly described features as "✅ Working"/"PRODUCTION READY" that had ZERO actual
+code behind them (confirmed via grep, multiple times this project: PerformanceManager, FactionSystem.cs,
+FactionQuestSystem.cs, and the F7 GUI below). Before trusting any "Working"/"PRODUCTION READY" claim in
+this file, grep the actual `.cs` files and confirm the class/method exists AND is in `OdinPlus.csproj`
+(explicit `<Compile Include>` list - new files silently don't compile if omitted).
+
+### 2026-08-02 session fixes (verified via live RuntimeMCP against the running game)
+- **BuilderNPC never actually building**: no `Villagers` faction existed in `faction_config.yaml`
+  despite `HumanNPC.FactionName` defaulting to it, so `AssignedBlueprints` was always empty. Fixed:
+  `BlueprintConfig.SyncVillagersAssignment()` now auto-creates/updates a `Villagers` faction with every
+  loaded blueprint assigned, on every load/reload/sync. Also `BuilderNPC.Awake()` now proactively calls
+  `CheckForBuildableStructures()` instead of only reacting to donation/harvest events.
+- **F7 Faction GUI was 100% fictional documentation** - grep for `F7|FactionPanel|FactionGui` found no
+  code anywhere despite the detailed spec later in this file. Built from scratch: `1NPC/FactionGui.cs`,
+  wired via `FactionGui.Init()` in `OdinPlus.PostZone()`. Toggles on F7, lists factions + reputation,
+  tries to find a `litpanel` material, falls back to a plain dark panel if not found.
+- **BlueprintBrowser window opened but showed zero icons** - live RuntimeMCP inspection
+  (`/execute get_field type=RectTransform field=rect object=PieceList`) found a NEGATIVE rect
+  (`width:-35, height:-74`), so `RectMask2D` clipped every icon to nothing. Root cause:
+  `TryBuildFromVanilla()` re-anchored the cloned window to a point anchor for bottom-center docking
+  without re-applying its natural `sizeDelta` (vanilla's original sizeDelta was a stretch-relative
+  inset, not an absolute size). Fixed by capturing the source window's natural size before re-anchoring
+  and reapplying it as `sizeDelta`. See `/memories/repo/odinplus-blueprint-village-work.md` for full
+  details of this and prior sessions' fixes.
+- Everything else in the equip -> toggle -> populate -> cursor-unlock -> click-wire pipeline was
+  confirmed already working live before this fix (item equips, browser toggles, icons had valid
+  sprites/tooltips, click delegates non-null, cursor correctly unlocked) - this sizing bug was the one
+  isolated defect blocking visibility.
 
 ### ✅ Working Systems
 

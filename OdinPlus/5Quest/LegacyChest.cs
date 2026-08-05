@@ -37,21 +37,13 @@ namespace OdinPlus
 			{
 				DestroyImmediate(this.GetComponent<StaticPhysics>());
 			}
-			/* 			if (ZNet.instance.IsServer() && ZNet.instance.IsDedicated())
-						{
-							Destroy(gameObject);
-						} */
+			InvokeRepeating(nameof(CheckEmpty), 1f, 1f);
 		}
-		private void Update()
+		private void CheckEmpty()
 		{
-			if (m_container.GetInventory() == null)
-			{
-				DBG.blogWarning("Cant find inv");
-				return;
-			}
+			if (m_container.GetInventory() == null) return;
 			if (m_container.GetInventory().NrOfItems() == 0)
 			{
-
 				Instantiate(NpcManager.RavenPrefab.GetComponent<Raven>().m_despawnEffect.m_effectPrefabs[0].m_prefab, gameObject.transform.position, Quaternion.identity);
 				ZNetScene.instance.Destroy(gameObject);
 			}

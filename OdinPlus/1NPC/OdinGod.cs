@@ -64,9 +64,10 @@ namespace OdinPlus
 			if (NpcManager.Root.transform.position == Vector3.zero)
 			{
 				LocationManager.GetStartPos();
+				DBG.blogWarning($"[OdinGod] Still waiting for position (polling every 3s)");
 				return;
 			}
-			DBG.blogInfo("Client Stop Request odin position");
+			DBG.blogInfo($"[OdinGod] Position received: {NpcManager.Root.transform.position}, canceling repeating invoke");
 			CancelInvoke("requestOidnPosition");
 		}
 		private void Start()

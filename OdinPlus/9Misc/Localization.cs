@@ -3,6 +3,9 @@ using UnityEngine;
 using HarmonyLib;
 using System.Reflection;
 using System;
+using System.IO;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 //TODO maybe remove the deco for colorize keyword,just let writers do it themsevels.make a note for them!
 namespace OdinPlus
 {
@@ -10,6 +13,8 @@ namespace OdinPlus
 	{
 		private static Localization lcl;
 		public static Dictionary<string, string> t; //= new Dictionary<string, string>();
+		private static readonly string ConfigPath = Path.Combine(BepInEx.Paths.ConfigPath, "OdinPlus");
+		private static bool _yamlExported = false;
 		private static Dictionary<string, string> english = new Dictionary<string, string>() {
 //NPC
 {"op_buy","Buy"},
@@ -37,6 +42,8 @@ namespace OdinPlus
 {"op_munin_wait_hug","Wait for Hugin, he will guide you on your quest."},
 {"op_OdinLegacy_desc","Offer this to Odin to get Credits"},
 {"op_OdinLegacy_name","Odin Legacy"},
+{"op_BlueprintTool_desc","Opens the Blueprint Browser to build saved structures"},
+{"op_BlueprintTool_name","Blueprint Tool"},
 {"op_offer","Offer your items"},
 {"op_pot_name","Odin's Pot"},
 {"op_pot_open","Hail warrior! Looking for something magical?"},
@@ -56,6 +63,11 @@ namespace OdinPlus
 {"op_use","Use 10 Credits to raise your skill:"},
 {"op_wolf_name","Magic Wolf"},
 {"op_wolf_use","Open wolf pack"},
+{"op_wolfpet_name","Magic Wolf"},
+{"op_dvergerpet_name","Dverger Pack Mule"},
+{"op_trollpet_name","Pet Troll"},
+{"op_fenringpet_name","Pet Fenring"},
+{"op_brutepet_name","Pet Brute"},
 {"op_wrong_num","Oops, wrong number"},
 //Meads
 {"op_ExpMeadS_name","Exp Mead Small"},
@@ -273,14 +285,120 @@ namespace OdinPlus
 		public static void init(string lang, Localization l)
 		{
 			lcl = l;
-			//string @str = PlayerPrefs.GetString("language", "");
-			if (lang == "Chinese")
+
+			// Ensure config directory exists
+			if (!Directory.Exists(ConfigPath))
 			{
-				t = chinese;
+				Directory.CreateDirectory(ConfigPath);
+			}
+
+			// Export default translation files on first run (one-time)
+			if (!_yamlExported)
+			{
+				ExportDefaultTranslations();
+				_yamlExported = true;
+			}
+
+			// Try to load from YAML first
+			t = LoadTranslationsFromYaml(lang);
+
+			// Fall back to hardcoded if YAML load failed
+			if (t == null || t.Count == 0)
+			{
+				DBG.blogWarning($"[Localization] Failed to load YAML for '{lang}', using hardcoded fallback");
+				if (lang == "Chinese")
+				{
+					t = chinese;
+				}
+				else
+				{
+					t = english;
+				}
 			}
 			else
 			{
-				t = english;
+				DBG.blogInfo($"[Localization] Loaded {t.Count} translations from YAML for '{lang}'");
+			}
+		}
+
+		private static void ExportDefaultTranslations()
+		{
+			try
+			{
+				var serializer = new SerializerBuilder()
+					.WithNamingConvention(UnderscoredNamingConvention.Instance)
+					.Build();
+
+				// Export English
+				string englishPath = Path.Combine(ConfigPath, "translations_english.yaml");
+				if (!File.Exists(englishPath))
+				{
+					string yaml = serializer.Serialize(english);
+					File.WriteAllText(englishPath, yaml);
+					DBG.blogInfo($"[Localization] Exported English translations to {englishPath}");
+				}
+
+				// Export Chinese
+				string chinesePath = Path.Combine(ConfigPath, "translations_chinese.yaml");
+				if (!File.Exists(chinesePath))
+				{
+					string yaml = serializer.Serialize(chinese);
+					File.WriteAllText(chinesePath, yaml);
+					DBG.blogInfo($"[Localization] Exported Chinese translations to {chinesePath}");
+				}
+
+				// Create template for other languages
+				string templatePath = Path.Combine(ConfigPath, "translations_template.yaml");
+				if (!File.Exists(templatePath))
+				{
+					string yaml = "# OdinPlus Translation Template\n";
+					yaml += "# Copy this file and rename to: translations_<language>.yaml\n";
+					yaml += "# Supported language names: English, Chinese, Japanese, French, German, Spanish, Russian, etc.\n";
+					yaml += "# Language name must match Valheim's language setting exactly\n\n";
+					yaml += serializer.Serialize(english);
+					File.WriteAllText(templatePath, yaml);
+					DBG.blogInfo($"[Localization] Created translation template at {templatePath}");
+				}
+			}
+			catch (Exception ex)
+			{
+				DBG.blogError($"[Localization] Failed to export default translations: {ex.Message}");
+			}
+		}
+
+		private static Dictionary<string, string> LoadTranslationsFromYaml(string lang)
+		{
+			try
+			{
+				// Map common language codes to file names
+				string fileName = $"translations_{lang.ToLower()}.yaml";
+				string filePath = Path.Combine(ConfigPath, fileName);
+
+				if (!File.Exists(filePath))
+				{
+					DBG.blogInfo($"[Localization] YAML file not found: {filePath}");
+					return null;
+				}
+
+				string yaml = File.ReadAllText(filePath);
+				var deserializer = new DeserializerBuilder()
+					.WithNamingConvention(UnderscoredNamingConvention.Instance)
+					.Build();
+
+				var translations = deserializer.Deserialize<Dictionary<string, string>>(yaml);
+
+				if (translations == null || translations.Count == 0)
+				{
+					DBG.blogWarning($"[Localization] YAML file exists but is empty: {filePath}");
+					return null;
+				}
+
+				return translations;
+			}
+			catch (Exception ex)
+			{
+				DBG.blogError($"[Localization] Failed to load translations from YAML: {ex.Message}");
+				return null;
 			}
 		}
 		public static void AddWord(object[] element)

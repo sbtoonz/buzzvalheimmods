@@ -11,6 +11,7 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -32,8 +33,8 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>..\0libDep\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="YamlDotNet">
+      <HintPath>..\0libDep\YamlDotNet.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="0Harmony">
@@ -141,10 +142,13 @@
       <HintPath>..\0libDep\UnityEngine.HotReloadModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="UnityEngine.ImageConversionModule">
+    <!-- UnityEngine.ImageConversionModule removed: its netstandard 2.1 dependency is newer than
+         this project's netstandard 2.0 reference (CS1705). ImageConversion.LoadImage is invoked
+         via reflection instead (see Util.LoadTextureRaw) to avoid the compile-time version clash. -->
+    <!-- <Reference Include="UnityEngine.ImageConversionModule">
       <HintPath>..\0libDep\UnityEngine.ImageConversionModule.dll</HintPath>
       <Private>False</Private>
-    </Reference>
+    </Reference> -->
     <Reference Include="UnityEngine.IMGUIModule">
       <HintPath>..\0libDep\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>False</Private>
@@ -241,6 +245,10 @@
       <HintPath>..\0libDep\UnityEngine.UI.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>..\0libDep\Unity.TextMeshPro.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.UIElementsModule">
       <HintPath>..\0libDep\UnityEngine.UIElementsModule.dll</HintPath>
       <Private>False</Private>
@@ -323,29 +331,34 @@
     <Compile Include="1NPC\OdinNPC.cs" />
     <Compile Include="1NPC\OdinShaman.cs" />
     <Compile Include="4Pets\PetManager.cs" />
-    <Compile Include="4Pets\PetTroll.cs" />
+    <Compile Include="4Pets\PetFighter.cs" />
+    <Compile Include="4Pets\PetPack.cs" />
+    <Compile Include="2StatusEffects\SE_SummonPet.cs" />
+    <Compile Include="1NPC\FactionSystem.cs" />
+    <Compile Include="1NPC\FactionPresets.cs" />
+    <Compile Include="1NPC\FactionGui.cs" />
     <Compile Include="9Misc\DBG.cs" />
     <Compile Include="9Misc\Localization.cs" />
     <Compile Include="9Misc\Terrain.cs" />
     <Compile Include="9Misc\Util.cs" />
+    <Compile Include="9Misc\PerformanceManager.cs" />
+    <Compile Include="9Misc\PerformanceProfiler.cs" />
     <Compile Include="0Main\OdinPlus.cs" />
     <!-- TODO: Valheim 0.221.12 - TMP_Text UI customization (low priority) -->
-    <!-- <Compile Include="1NPC\OdinTrader.cs" /> -->
+    <Compile Include="1NPC\OdinTrader.cs" />
     <Compile Include="3Items\OdinItem.cs" />
     <Compile Include="3Items\OdinMeads.cs" />
     <Compile Include="0Main\Plugin.cs" />
     <Compile Include="9Misc\OdinInteractable.cs" />
-    <Compile Include="4Pets\PetWolf.cs" />
     <Compile Include="9Misc\GameTweaker.cs" />
-    <Compile Include="2StatusEffects\SE_SummonPet.cs" />
     <Compile Include="0Main\OdinData.cs" />
     <Compile Include="9Misc\LocationManager.cs" />
     <Compile Include="5Quest\LegacyChest.cs" />
     <Compile Include="3Items\PrefabManager.cs" />
     <Compile Include="2StatusEffects\Se_Buzz.cs" />
     <Compile Include="9Misc\DevTool.cs" />
-    <!-- TODO: Valheim 0.221.12 - HuntTarget creature type lookup (low priority) -->
-    <!-- <Compile Include="5Quest\HuntTarget.cs" /> -->
+    <Compile Include="5Quest\HuntTarget.cs" />
+    <Compile Include="5Quest\FactionQuestSystem.cs" />
     <Compile Include="8Assets\FxAssetManager.cs" />
     <Compile Include="8Assets\ResourceAssetManager.cs" />
     <EmbeddedResource Include="Resources\OdinLegacy.png" />
@@ -373,9 +386,19 @@
     <EmbeddedResource Include="Resources\AxeMeadL.png" />
     <EmbeddedResource Include="Resources\SE_Troll.png" />
     <EmbeddedResource Include="Resources\SE_Wolf.png" />
+    <EmbeddedResource Include="Resources\blueprintui" />
     <Compile Include="6Humans\HumanManager.cs" />
-    <!-- TODO: Valheim 0.221.12 - SoftReference assembly not referenced (low priority) -->
-    <!-- <Compile Include="7Locations\LocationMarker.cs" /> -->
+    <Compile Include="6Humans\BuilderNPC.cs" />
+    <Compile Include="6Humans\BlueprintGhost.cs" />
+    <Compile Include="6Humans\BlueprintBrowser.cs" />
+    <Compile Include="6Humans\BlueprintBrowserAssets.cs" />
+    <Compile Include="6Humans\BuildHudSuppressor.cs" />
+    <Compile Include="6Humans\BlueprintPlacer.cs" />
+    <Compile Include="6Humans\BlueprintIconRenderer.cs" />
+    <Compile Include="6Humans\BlueprintScanner.cs" />
+    <Compile Include="6Humans\BlueprintSelector.cs" />
+    <Compile Include="6Humans\BlueprintConfig.cs" />
+    <Compile Include="7Locations\LocationMarker.cs" />
     <Compile Include="1NPC\HumanNPC.cs" />
     <Compile Include="5Quest\QuestManager.cs" />
     <Compile Include="5Quest\Quest.cs" />
