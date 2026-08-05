@@ -26,6 +26,9 @@ namespace OdinPlus
 		public string[] ChoiceList = { "$op_talk" };
 		private int index = 0;
 		private string currentChoice = "";
+		// Faction this NPC belongs to (e.g. for blueprint AllowedFactions gating, reputation, etc).
+		// Defaults to the shared village faction; HumanManager can override per-instance at spawn time.
+		public string FactionName = "Villagers";
 		#endregion Interal
 		#endregion var
 		protected virtual void Awake()
@@ -39,6 +42,12 @@ namespace OdinPlus
 			m_vis = GetComponent<VisEquipment>();
 			//RemoveUnusedComp();
 			currentChoice = ChoiceList[index];
+			PerformanceManager.Instance.RegisterNPC(this);
+		}
+
+		private void OnDestroy()
+		{
+			PerformanceManager.Instance.UnregisterNPC(this);
 		}
 
 		private void RemoveUnusedComp()

@@ -25,8 +25,9 @@ namespace OdinPlus
 
 		private void OnDestroy()
 		{
-
 			Villagers.Remove(this);
+			if (m_hum != null)
+				m_hum.m_onDamaged = (Action<float, Character>)Delegate.Remove(m_hum.m_onDamaged, new Action<float, Character>(Damage));
 		}
 		private void Damage(float hit, Character character)
 		{
@@ -46,7 +47,7 @@ namespace OdinPlus
 		{
 			DateTime d = new DateTime(this.m_nview.GetZDO().GetLong("QuestTime", (long)QuestCD));
 			bool result = (ZNet.instance.GetTime() - d).TotalSeconds > (double)QuestCD;
-			EXCobj.SetActive(result);
+			if (EXCobj != null) EXCobj.SetActive(result);
 			return result;
 		}
 		public void ResetQuestCD()

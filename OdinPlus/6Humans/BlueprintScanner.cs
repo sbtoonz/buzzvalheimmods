@@ -42,10 +42,9 @@ namespace OdinPlus
 			Vector3 playerPos = Player.m_localPlayer.transform.position;
 			DBG.blogInfo($"[BlueprintScanner] Scanning {radius}m radius around player for pieces...");
 
-			// Find all Piece components within radius
-			var allPieces = FindObjectsOfType<Piece>();
-			var nearbyPieces = allPieces
-				.Where(p => Vector3.Distance(p.transform.position, playerPos) <= radius)
+			var tempPieces = new List<Piece>();
+			Piece.GetAllPiecesInRadius(playerPos, radius, tempPieces);
+			var nearbyPieces = tempPieces
 				.Where(p => p.gameObject.activeInHierarchy)
 				.OrderBy(p => p.transform.position.y)
 				.ThenBy(p => p.transform.position.x)
@@ -175,10 +174,9 @@ namespace OdinPlus
 
 			Vector3 playerPos = Player.m_localPlayer.transform.position;
 
-			// Find pieces
-			var allPieces = FindObjectsOfType<Piece>();
-			var nearbyPieces = allPieces
-				.Where(p => Vector3.Distance(p.transform.position, playerPos) <= radius)
+			var tempPieces = new List<Piece>();
+			Piece.GetAllPiecesInRadius(playerPos, radius, tempPieces);
+			var nearbyPieces = tempPieces
 				.Where(p => p.gameObject.activeInHierarchy)
 				.ToList();
 
@@ -232,9 +230,9 @@ namespace OdinPlus
 
 			Vector3 playerPos = Player.m_localPlayer.transform.position;
 
-			var allPieces = FindObjectsOfType<Piece>();
-			var nearbyPieces = allPieces
-				.Where(p => Vector3.Distance(p.transform.position, playerPos) <= radius)
+			var tempPieces = new List<Piece>();
+			Piece.GetAllPiecesInRadius(playerPos, radius, tempPieces);
+			var nearbyPieces = tempPieces
 				.Where(p => p.gameObject.activeInHierarchy)
 				.ToList();
 

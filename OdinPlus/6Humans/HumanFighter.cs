@@ -13,6 +13,14 @@ namespace OdinPlus
 			m_hum.m_onDamaged = (Action<float, Character>)Delegate.Combine(m_hum.m_onDamaged, (Action<float, Character>)(Damage));
 			m_hum.m_onDeath = (Action)Delegate.Combine(m_hum.m_onDeath, (Action)onDeath);
 		}
+		private void OnDestroy()
+		{
+			if (m_hum != null)
+			{
+				m_hum.m_onDamaged = (Action<float, Character>)Delegate.Remove(m_hum.m_onDamaged, new Action<float, Character>(Damage));
+				m_hum.m_onDeath = (Action)Delegate.Remove(m_hum.m_onDeath, new Action(onDeath));
+			}
+		}
 		public override void Choice0()
 		{
 			Say("Want a Fight?", "emote_point");
