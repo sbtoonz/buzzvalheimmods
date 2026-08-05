@@ -1,6 +1,4 @@
-﻿using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Linq;
 using HarmonyLib;
 using UnityEngine;
@@ -15,12 +13,14 @@ namespace OdinPlus
 		private static Dictionary<string, GameObject> PetList = new Dictionary<string, GameObject>();
 		public static GameObject TrollIns;
 		public static GameObject WolfIns;
+		public static GameObject FenringIns;
+		public static GameObject BruteIns;
+		public static GameObject DvergerIns;
 		public static GameObject Indicator;
 		public static GameObject excObj;
 		public static bool isInit = false;
-
-		//public static Pet instance;
 		#endregion
+
 		#region Main
 		private void Awake()
 		{
@@ -29,18 +29,23 @@ namespace OdinPlus
 		public static void Clear()
 		{
 			TrollIns = null;
+			WolfIns = null;
+			FenringIns = null;
+			BruteIns = null;
+			DvergerIns = null;
 			DBG.blogInfo("PetList Clear");
 		}
 		public static void Init()
 		{
-
 			zns = ZNetScene.instance;
 			Root = new GameObject("PetPrefab");
 			Root.transform.SetParent(OdinPlus.PrefabParent.transform);
 
-			
 			InitTroll();
 			InitWolf();
+			InitFenring();
+			InitBrute();
+			InitDverger();
 
 			OdinPlus.OdinPostRegister(PetList);
 			isInit = true;
@@ -50,101 +55,151 @@ namespace OdinPlus
 		#region Troll
 		private static void InitTroll()
 		{
-			/* string[] l = Plugin.CFG_Pets.Value.Split(new char[] { ',' });
-			foreach (string name in l)
-			{
-				CreateTrollPrefab(name);
-			} */
-			CreateTrollPrefab("Troll");
+			CreateFighterPet("Troll", "TrollPet");
 		}
-		private static void CreateTrollPrefab(string name)
+		#endregion
+
+		#region Fenring
+		private static void InitFenring()
 		{
-			if (zns.GetPrefab(name) == null)
-			{
-				DBG.blogWarning("can't find the prefab zns :" + name);
-				return;
-			}
-			var go = Instantiate(zns.GetPrefab(name), Root.transform);
-			go.name = name + "Pet";
-			Tameable tame;
-			if (!go.TryGetComponent<Tameable>(out tame))
-			{
-				tame = go.AddComponent<Tameable>();
-			}
-			go.AddComponent<PetTroll>();
-			var hd = go.GetComponent<Humanoid>();
-			var mai = go.GetComponent<MonsterAI>();
-
-			DestroyImmediate(go.GetComponent<CharacterDrop>());
-
-			hd.m_name = hd.m_name + " Pet";//trans
-			hd.m_faction = Character.Faction.Players;
-
-			mai.m_consumeItems.Clear();
-
-			SetColor(go);
-
-			if (hd.m_randomSets.Length > 1)
-			{
-				hd.m_randomSets = hd.m_randomSets.Skip(hd.m_randomSets.Length - 1).ToArray();
-			}
-			PetList.Add(name + "Pet", go);
-			return;
+			CreateFighterPet("Fenring", "FenringPet");
 		}
+		#endregion
 
-
+		#region Brute
+		private static void InitBrute()
+		{
+			CreateFighterPet("GoblinBruteBros_nochest", "BrutePet");
+		}
 		#endregion
 
 		#region Wolf
 		private static void InitWolf()
 		{
-			var go = Instantiate(zns.GetPrefab("Wolf"), Root.transform);
-			go.name = "WolfPet";
-			var hum = go.GetComponent<Humanoid>();
+			CreatePackPet("Wolf", "WolfPet");
+		}
+		#endregion
+
+		#region Dverger
+		private static void InitDverger()
+		{
+			CreatePackPet("Dverger", "DvergerPet");
+		}
+		#endregion
+
+		#region Factory
+		private static void CreateFighterPet(string prefabName, string petName)
+		{
+			if (zns.GetPrefab(prefabName) == null)
+			{
+				DBG.blogWarning("Can't find prefab in ZNetScene: " + prefabName);
+				return;
+			}
+			ZNetView.m_forceDisableInit = true;
+			var go = Instantiate(zns.GetPrefab(prefabName), Root.transform);
+			ZNetView.m_forceDisableInit = false;
+			go.name = petName;
+
+			Tameable tame;
+			if (!go.TryGetComponent<Tameable>(out tame))
+				tame = go.AddComponent<Tameable>();
+
+			go.AddComponent<PetFighter>();
+
+			var hd = go.GetComponent<Humanoid>();
 			var mai = go.GetComponent<MonsterAI>();
-			var tame = go.GetComponent<Tameable>();
 
-			DestroyImmediate(go.GetComponent<Procreation>());
-			DestroyImmediate(go.GetComponent<CharacterDrop>());
+			var drop = go.GetComponent<CharacterDrop>();
+			if (drop != null) DestroyImmediate(drop);
 
-			var pw = go.AddComponent<PetWolf>();
+			if (hd != null)
+			{
+				hd.m_name = hd.m_name + " Pet";
+				hd.m_faction = Character.Faction.Players;
+			}
+
+			if (mai != null)
+				mai.m_consumeItems.Clear();
 
 			SetColor(go);
 
-			//Humanoid
+			if (hd != null && hd.m_randomSets != null && hd.m_randomSets.Length > 1)
+				hd.m_randomSets = hd.m_randomSets.Skip(hd.m_randomSets.Length - 1).ToArray();
 
-			hum.m_name = "$op_wolf_name";
-			hum.m_faction = Character.Faction.Players;
-			mai.m_consumeItems.Clear();
-			//hum.SetLevel(4);
-			//Ai Tweak
-			mai.m_randomMoveInterval = 10000;
-			mai.m_randomCircleInterval = 10000;
-			mai.m_alertRange = 30;
-			mai.m_viewRange = 30;
-			mai.m_hearRange = 30;
-			//Container
+			PetList.Add(petName, go);
+		}
+
+		private static void CreatePackPet(string prefabName, string petName)
+		{
+			if (zns.GetPrefab(prefabName) == null)
+			{
+				DBG.blogWarning("Can't find prefab in ZNetScene: " + prefabName);
+				return;
+			}
+			ZNetView.m_forceDisableInit = true;
+			var go = Instantiate(zns.GetPrefab(prefabName), Root.transform);
+			ZNetView.m_forceDisableInit = false;
+			go.name = petName;
+
+			var hum = go.GetComponent<Humanoid>();
+			var mai = go.GetComponent<MonsterAI>();
+			Tameable tame;
+			if (!go.TryGetComponent<Tameable>(out tame))
+				tame = go.AddComponent<Tameable>();
+
+			var proc = go.GetComponent<Procreation>();
+			if (proc != null) DestroyImmediate(proc);
+			var drop = go.GetComponent<CharacterDrop>();
+			if (drop != null) DestroyImmediate(drop);
+
+			go.AddComponent<PetPack>();
+
+			SetColor(go);
+
+			if (hum != null)
+			{
+				hum.m_name = "$op_" + petName.ToLower() + "_name";
+				hum.m_faction = Character.Faction.Players;
+			}
+			if (mai != null)
+			{
+				mai.m_consumeItems.Clear();
+				mai.m_randomMoveInterval = 10000;
+				mai.m_randomCircleInterval = 10000;
+				mai.m_alertRange = 30;
+				mai.m_viewRange = 30;
+				mai.m_hearRange = 30;
+			}
+
 			var ctn = go.AddComponent<Container>();
-			//pw.container = ctn;
 			ctn.m_width = 2;
 			ctn.m_height = 2;
-			ctn.m_name = "WolfPack";//trans
-			//ctn.m_destroyedLootPrefab = zns.GetPrefab("CargoCrate");
-			ctn.m_bkg = zns.GetPrefab("CargoCrate").GetComponent<Container>().m_bkg;
-			PetList.Add(go.name, go);
+			ctn.m_name = petName + "Pack";
+			var cargoPrefab = zns.GetPrefab("CargoCrate");
+			if (cargoPrefab != null)
+			{
+				var cargoContainer = cargoPrefab.GetComponent<Container>();
+				if (cargoContainer != null) ctn.m_bkg = cargoContainer.m_bkg;
+			}
 
+			PetList.Add(petName, go);
 		}
-		#endregion Wolf
+		#endregion Factory
 
 		#region Feature
-		public static void SummonPet(string name)
+		public static GameObject SummonPet(string name)
 		{
 			var ppfb = ZNetScene.instance.GetPrefab(name);
+			if (ppfb == null)
+			{
+				DBG.blogWarning("Can't summon pet - prefab not found: " + name);
+				return null;
+			}
 			var go = Instantiate(ppfb, Player.m_localPlayer.transform.position + Player.m_localPlayer.transform.forward * 2f + Vector3.up, Quaternion.identity);
 			go.GetComponent<Character>().SetLevel(4);
-			DBG.InfoCT("You summoned a " + name);//trans
+			DBG.InfoCT("You summoned a " + name);
+			return go;
 		}
-
 		#endregion Feature
 
 		#region Tool
@@ -158,13 +213,14 @@ namespace OdinPlus
 		}
 		public static void SetColor(GameObject go)
 		{
-			var mat = go.GetComponentInChildren<Renderer>().material;
+			var renderer = go.GetComponentInChildren<Renderer>();
+			if (renderer == null) return;
+			var mat = renderer.material;
 			mat.SetFloat("_Hue", 0.3f);
 			mat.SetFloat("_Saturation", 0.5f);
 			mat.EnableKeyword("_EMISSION");
 			mat.SetColor("_EmissionColor", Color.HSVToRGB(0.3f, 0.5f, 0.3f) * 0.1f);
 			mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-
 		}
 		#endregion Tool
 	}

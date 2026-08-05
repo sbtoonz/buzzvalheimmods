@@ -35,13 +35,17 @@ namespace OdinPlus
 		#region Tool
 		private static GameObject InsVal(string prefab, string name)
 		{
+			ZNetView.m_forceDisableInit = true;
 			var a = GameObject.Instantiate(ZNetScene.instance.GetPrefab(prefab), Root);
+			ZNetView.m_forceDisableInit = false;
 			a.name = name;
 			return a;
 		}
 		private static GameObject InsVal(string prefab, string par, string name)
 		{
+			ZNetView.m_forceDisableInit = true;
 			var a = GameObject.Instantiate(ZNetScene.instance.GetPrefab(prefab).FindObject(par), Root);
+			ZNetView.m_forceDisableInit = false;
 			a.name = name;
 			return a;
 		}

@@ -11,6 +11,9 @@ namespace OdinPlus
 	public class HuntTarget : MonoBehaviour
 	{
 		#region var
+		private static readonly AccessTools.FieldRef<CharacterDrop, bool> s_dropsEnabledRef =
+			AccessTools.FieldRefAccess<CharacterDrop, bool>("m_dropsEnabled");
+
 		private ZNetView m_nview;
 		public string ID = "";
 		public int Level=1;
@@ -55,24 +58,22 @@ namespace OdinPlus
 				m_ownerName = zdo.GetString("OwnerName", "");
 			}
 			m_mai.SetPatrolPoint();
-			// AddStatusEffect expects status effect name (string), not an int
-			// Get the key from MonsterSEList using Level as index (e.g., "MonsterAttackAMP1")
-			var seKey = OdinSE.MonsterSEList.Keys.ElementAt(Level - 1);
-			Traverse.Create(m_hum).Field<SEMan>("m_seman").Value.AddStatusEffect(seKey);
+			InvokeRepeating(nameof(ValidateQuest), 5f, 5f);
 		}
-		private void Update()
+		private void OnDestroy()
 		{
-			if (ID=="")
-			{
-				return;
-			}
+			if (m_chrct != null)
+				m_chrct.m_onDeath = (Action)Delegate.Remove(m_chrct.m_onDeath, new Action(OnDeath));
+		}
+		private void ValidateQuest()
+		{
+			if (ID == "") return;
 			var m_task = QuestManager.instance.GetQuest(ID);
 			if (m_task == null)
 			{
 				DBG.blogInfo("Cant find task,Destroy Hunt Target" + ID);
-				Traverse.Create(m_cDrop).Field<bool>("m_dropsEnabled").Value = false;
+				s_dropsEnabledRef(m_cDrop) = false;
 				m_nview.Destroy();
-				return;
 			}
 		}
 		public void OnDeath()
@@ -113,7 +114,9 @@ namespace OdinPlus
 		}
 		public static GameObject CreateMonster(string name)
 		{
+			ZNetView.m_forceDisableInit = true;
 			var go = Instantiate(ZNetScene.instance.GetPrefab(name), OdinPlus.PrefabParent.transform);
+			ZNetView.m_forceDisableInit = false;
 			name = Regex.Replace(name, @"[_]", "");
 			go.name = name + "Hunt";
 			go.AddComponent<HuntTarget>();
@@ -132,7 +135,7 @@ namespace OdinPlus
 			d.m_levelMultiplier = false;
 			d.m_prefab = ZNetScene.instance.GetPrefab("OdinLegacy");
 			m_cDrop.m_drops = new List<CharacterDrop.Drop>();
-			Traverse.Create(m_cDrop).Field<bool>("m_dropsEnabled").Value = true;
+			s_dropsEnabledRef(m_cDrop) = true;
 			m_cDrop.m_drops.Add(d);
 		}
 		public static void Place(Vector3 pos, string monster, string id,string _owner, int p_key, int p_lvl)

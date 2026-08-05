@@ -51,7 +51,9 @@ namespace OdinPlus
 			for (int i = 1; i < 11; i++)
 			{
 				var go = ZNetScene.instance.GetPrefab("OdinLegacy");
+				ZNetView.m_forceDisableInit = true;
 				GameObject Chest = Instantiate(ZNetScene.instance.GetPrefab("Chest"), Root.transform);
+				ZNetView.m_forceDisableInit = false;
 				Chest.name = "LegacyChest" + i;
 
 				DestroyImmediate(Chest.GetComponent<Rigidbody>());

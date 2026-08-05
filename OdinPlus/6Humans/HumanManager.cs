@@ -1,5 +1,6 @@
 using System.Security.AccessControl;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
@@ -55,12 +56,14 @@ namespace OdinPlus
 			new humanData(){presetNAME="DumbNPC",health=300,
 			sets="Troll0",
 			weapons = new string[]{"SwordBronze", "SwordIron"},
-			m_randomMoveRange=0,
+			m_randomMoveRange=3,
+			m_randomMoveInterval=20,
 			isFriend=true,
 			},
 			new humanData(){presetNAME="DumbWorker",health=300,
 			sets="Troll0",
-			m_randomMoveRange=0,
+			m_randomMoveRange=5,
+			m_randomMoveInterval=15,
 			weapons=Tools,
 			sheild=new string[]{""},
 			isFriend=true,
@@ -86,6 +89,7 @@ namespace OdinPlus
 		};
 		public static void Init()
 		{
+			if (isInit) return;
 			HackValHuman();
 			HumanNpc();
 			initSpawner();
@@ -98,7 +102,9 @@ namespace OdinPlus
 		#region Npcs
 		private static void HackValHuman()
 		{
+			ZNetView.m_forceDisableInit = true;
 			var go = Instantiate(Game.instance.m_playerPrefab, OdinPlus.PrefabParent.transform);
+			ZNetView.m_forceDisableInit = false;
 			go.GetComponent<ZNetView>().m_persistent = true;
 			DestroyImmediate(go.GetComponent<PlayerController>());
 			DestroyImmediate(go.GetComponent<Talker>());
@@ -127,10 +133,16 @@ namespace OdinPlus
 			CreateNPC<HumanMessager>("DumbWorker", "MessageNPCHuman");
 			CreateNPC<HumanWorker>("DumbWorker", "WorkerNPCHuman");
 			CreateNPC<HumanVillager>("GuardNPC", "GuardVillager");
+			// BuilderNPC was fully implemented (ghost/incremental construction, self-gathering,
+			// material requests) but never actually registered as a spawnable prefab - couldn't be
+			// spawned via console or found in villages at all until this line existed.
+			CreateNPC<BuilderNPC>("DumbWorker", "BuilderNPCHuman");
 		}
 		public static void CreateNPC<T>(string pname, string goname) where T : Component
 		{
+			ZNetView.m_forceDisableInit = true;
 			var go = Instantiate(BasicHuman, OdinPlus.PrefabParent.transform);
+			ZNetView.m_forceDisableInit = false;
 			CreatePreset(go, pname);
 			go.AddComponent<T>();
 			go.name = goname;
@@ -172,17 +184,26 @@ namespace OdinPlus
 		}
 		public static void PostZone()
 		{
-			var exc_prb = Tutorial.instance.m_ravenPrefab.transform.Find("Munin").gameObject;
-			foreach (var item in PrefabList.Values)
+			// Tutorial.instance may not be set yet at ZoneSystem.Start time (race condition, see NpcManager.DoInit)
+			// Don't let a missing raven prefab abort HackingLoc() below - that's what spawns village NPCs.
+			if (Tutorial.instance == null || Tutorial.instance.m_ravenPrefab == null)
 			{
-				var comp = item.GetComponent<QuestVillager>();
-				if (comp)
+				DBG.blogWarning("[HumanManager] Tutorial.instance or m_ravenPrefab null, skipping quest-marker icons this pass");
+			}
+			else
+			{
+				var exc_prb = Tutorial.instance.m_ravenPrefab.transform.Find("Munin").gameObject;
+				foreach (var item in PrefabList.Values)
 				{
-					var go = comp.gameObject;
-					var exc = Instantiate(exc_prb.GetComponentInChildren<Raven>().m_exclamation, Vector3.up *1.3f+go.transform.position, Quaternion.identity, go.transform);
-					exc.name = "excOBJ";
-					exc.transform.localScale = Vector3.one * 0.5f;
-					comp.EXCobj = exc;
+					var comp = item.GetComponent<QuestVillager>();
+					if (comp)
+					{
+						var go = comp.gameObject;
+						var exc = Instantiate(exc_prb.GetComponentInChildren<Raven>().m_exclamation, Vector3.up *1.3f+go.transform.position, Quaternion.identity, go.transform);
+						exc.name = "excOBJ";
+						exc.transform.localScale = Vector3.one * 0.5f;
+						comp.EXCobj = exc;
+					}
 				}
 			}
 
@@ -194,7 +215,9 @@ namespace OdinPlus
 		#region Test
 		public static void HumanMobA()
 		{
+			ZNetView.m_forceDisableInit = true;
 			var go = Instantiate(BasicHuman, OdinPlus.PrefabParent.transform);
+			ZNetView.m_forceDisableInit = false;
 
 			var vis = go.GetComponent<VisEquipment>();
 			var hum = go.GetComponent<Humanoid>();
@@ -217,7 +240,9 @@ namespace OdinPlus
 		}
 		public static void HumanMobB()
 		{
+			ZNetView.m_forceDisableInit = true;
 			var go = Instantiate(BasicHuman, OdinPlus.PrefabParent.transform);
+			ZNetView.m_forceDisableInit = false;
 
 			var vis = go.GetComponent<VisEquipment>();
 			var hum = go.GetComponent<Humanoid>();
@@ -241,7 +266,9 @@ namespace OdinPlus
 		}
 		public static void HumanSpawner()
 		{
+			ZNetView.m_forceDisableInit = true;
 			var go = Instantiate(ZNetScene.instance.GetPrefab("Spawner_Goblin"), OdinPlus.PrefabParent.transform);
+			ZNetView.m_forceDisableInit = false;
 			var a = go.GetComponent<CreatureSpawner>();
 			go.name = "SpawnHuman";
 			a.m_creaturePrefab = PrefabList["HumanMobA"];
@@ -369,34 +396,95 @@ namespace OdinPlus
 		#region  HackingLocation	
 		public static void HackingLoc()
 		{
-			HackingFarm();
 			HackingRuneStones();
 		}
-		public static void HackingFarm()
+
+		// Regression root cause (Valheim 0.221.12 / Unity 6 migration):
+		// Location prefabs (e.g. "WoodFarm1") are NOT registered in ZNetScene.m_namedPrefabs - only
+		// piece/creature/item prefabs are. Locations are streamed via SoftReferenceableAssets and are
+		// only ever instantiated by ZoneSystem itself (ZoneSystem.SpawnLocation), which clones each
+		// ZNetView-bearing child of the location prefab INDIVIDUALLY into world space - there is no
+		// single "village root" GameObject we could parent spawners under even if we found the prefab.
+		// The old HackingFarm() code silently fell back to attaching spawners under
+		// PrefabManager.Root.transform (a mod-internal utility root, nowhere near any real village),
+		// which is why villages generated with zero NPCs.
+		//
+		// Fix: hook LocationProxy - the small persistent ZNetView marker ZoneSystem spawns at the
+		// real world position of every placed location (see LocationProxy.SetLocation/.Awake in
+		// assem_valheim). Its ZDO stores the location's name (hashed, ZDOVars.s_location) and is
+		// available both the very first time a location is generated (via SetLocation) and every
+		// subsequent time the zone streams back in (via Awake alone, reading the persisted ZDO) - so
+		// patching both LocationProxy.Awake and LocationProxy.SetLocation (see Plugin.cs) guarantees we
+		// never miss the spawn event. TrySeedVillage() below is idempotent (a custom
+		// "OdinVillageSeeded" ZDO flag on that same persistent ZDO) so it's safe to call from both hooks
+		// and safe across many zone reloads / repeated sessions without ever duplicating NPCs.
+		private static readonly int WoodFarm1LocationHash = "WoodFarm1".GetStableHashCode();
+
+		public static void TrySeedVillage(LocationProxy proxy)
 		{
-			Transform t = PrefabManager.Root.transform;
-			var a = ZoneSystem.instance.m_locations;
-			foreach (var item in a)
+			if (ZNet.instance == null || !ZNet.instance.IsServer())
 			{
-				if (item.m_prefabName == "WoodFarm1")
-				{
-					t = item.m_prefab.transform;
-					break;
-				}
+				return;
 			}
-			var guard = ZNetScene.instance.GetPrefab("GuardVillager" + "Spawner");
-			var msg = ZNetScene.instance.GetPrefab("MessageNPCHuman" + "Spawner");
-			var rsc = ZNetScene.instance.GetPrefab("MatNPCHuman" + "Spawner");
-			rsc = Instantiate(rsc, new Vector3(5, 0, 5) + t.position, Quaternion.identity, t);
-			msg = Instantiate(msg, new Vector3(5.5f, 0, 5.5f) + t.position, Quaternion.identity, t);
+			var nview = proxy.GetComponent<ZNetView>();
+			if (nview == null)
+			{
+				return;
+			}
+			var zdo = nview.GetZDO();
+			if (zdo == null)
+			{
+				return;
+			}
+			if (zdo.GetInt(ZDOVars.s_location) != WoodFarm1LocationHash)
+			{
+				return;
+			}
+			if (zdo.GetBool("OdinVillageSeeded", false))
+			{
+				return;
+			}
+			zdo.Set("OdinVillageSeeded", true);
+			// This runs from a Postfix on LocationProxy.Awake, which fires *inside* ZNetScene.CreateObject's
+			// own Instantiate() call - ZNetView.m_useInitZDO is still true there (reset only after that
+			// Instantiate returns) and m_initZDO was already consumed by the proxy's own ZNetView.Awake.
+			// Spawning our ZNetView-bearing spawners synchronously here makes every one of them log a
+			// false-positive "Double ZNetview" warning. Deferring one frame runs after CreateObject has
+			// returned and reset the flag, so each spawner gets a clean, correctly-created ZDO.
+			var pos = proxy.transform.position;
+			var rot = proxy.transform.rotation;
+			ZNetScene.instance.StartCoroutine(SpawnVillageNextFrame(pos, rot));
+		}
+
+		private static IEnumerator SpawnVillageNextFrame(Vector3 pos, Quaternion rot)
+		{
+			yield return null;
+			SpawnVillageAt(pos, rot);
+		}
+
+		public static void SpawnVillageAt(Vector3 pos, Quaternion rot)
+		{
+			var guardPrefab = ZNetScene.instance.GetPrefab("GuardVillager" + "Spawner");
+			var msgPrefab = ZNetScene.instance.GetPrefab("MessageNPCHuman" + "Spawner");
+			var rscPrefab = ZNetScene.instance.GetPrefab("MatNPCHuman" + "Spawner");
+			var builderPrefab = ZNetScene.instance.GetPrefab("BuilderNPCHuman" + "Spawner");
+			if (guardPrefab == null || msgPrefab == null || rscPrefab == null || builderPrefab == null)
+			{
+				DBG.blogWarning("[HumanManager] Village spawner prefab(s) missing (guard/msg/resource/builder), aborting village seed at " + pos);
+				return;
+			}
+			var rsc = Instantiate(rscPrefab, pos + rot * new Vector3(5, 0, 5), rot);
+			var msg = Instantiate(msgPrefab, pos + rot * new Vector3(5.5f, 0, 5.5f), rot);
+			var builder = Instantiate(builderPrefab, pos + rot * new Vector3(6f, 0, 6f), rot);
+			rsc.name = rsc.name.RemoveClone();
+			msg.name = msg.name.RemoveClone();
+			builder.name = builder.name.RemoveClone();
 			for (int i = 0; i < 9; i++)
 			{
-				guard  = Instantiate(guard, new Vector3(10.RollDices(), 0, 10.RollDices()) + t.position, Quaternion.identity, t);
+				var guard = Instantiate(guardPrefab, pos + rot * new Vector3(10.RollDices(), 0, 10.RollDices()), rot);
+				guard.name = guard.name.RemoveClone();
 			}
-			rsc.name=rsc.name.RemoveClone();
-			msg.name=msg.name.RemoveClone();
-			guard.name=guard.name.RemoveClone();
-			DBG.blogWarning("Hacking Village");
+			DBG.blogWarning("[HumanManager] Seeded village NPCs at " + pos);
 		}
 		private static readonly string[] rstones = new string[] { "Runestone_Meadows", "Runestone_Swamps", "Runestone_BlackForest" };
 		public static void HackingRuneStones()

@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Collections.Generic;
+using HarmonyLib;
 using UnityEngine;
 
 namespace OdinPlus
@@ -10,8 +12,7 @@ namespace OdinPlus
 		public static GameObject Root;
 		public static GameObject terrain;
 		public static OdinGod m_odinGod;
-		// TODO: Valheim 0.221.12 - OdinTrader disabled (TMP_Text dependency)
-		// public static OdinTrader m_odinPot;
+		public static OdinTrader m_odinPot;
 		public static OdinShaman m_odinShaman;
 		public static GameObject RavenPrefab;
 		public static OdinMunin m_odinMunin;
@@ -23,6 +24,27 @@ namespace OdinPlus
 
 		#region Main
 		private void Awake()
+		{
+			if (Tutorial.instance == null || Tutorial.instance.m_ravenPrefab == null)
+			{
+				DBG.blogWarning("[NpcManager] Tutorial.instance or m_ravenPrefab null, deferring init");
+				Invoke(nameof(DeferredInit), 1f);
+				return;
+			}
+			DoInit();
+		}
+		private void DeferredInit()
+		{
+			if (IsInit) return;
+			if (Tutorial.instance == null || Tutorial.instance.m_ravenPrefab == null)
+			{
+				DBG.blogWarning("[NpcManager] Tutorial still null after defer, skipping excObj init");
+				Init();
+				return;
+			}
+			DoInit();
+		}
+		private void DoInit()
 		{
 			RavenPrefab = Tutorial.instance.m_ravenPrefab.transform.Find("Munin").gameObject;
 			if (PetManager.excObj == null)
@@ -52,9 +74,10 @@ namespace OdinPlus
 
 			Root.SetActive(true);
 
-			var pfab = ZoneSystem.instance.m_locations[85].m_prefab.transform.Find("ForceField");
-			var nmz = Instantiate(pfab, Root.transform);
-			nmz.transform.localScale = Vector3.one * 10;
+			// TODO: 0.221.12 - m_prefab is SoftReference, skip ForceField setup
+			// var pfab = ZoneSystem.instance.m_locations[85].m_prefab.transform.Find("ForceField");
+			// var nmz = Instantiate(pfab, Root.transform);
+			// nmz.transform.localScale = Vector3.one * 10;
 		}
 		public static void test()
 		{
@@ -100,10 +123,21 @@ namespace OdinPlus
 		private static void InitOdinGod()
 		{
 			var podin = ZNetScene.instance.GetPrefab("odin");
+			// Prevent ZNetView.Awake() from ever registering a ZDO/m_instances entry for this
+			// decorative clone - ZNetView.OnDestroy() does NOT clean up ZNetScene.m_instances,
+			// so destroying it after the fact (previous approach) can leave null entries that
+			// make ZNetScene.RemoveObjects() throw and abort every call (kills distant-object
+			// culling -> tanks FPS). m_useInitZDO/m_forceDisableInit are static fields also used
+			// by the game's own concurrent spawn calls, so keep this window as small as possible.
+			ZNetView.m_forceDisableInit = true;
 			var odin = Instantiate(podin, Root.transform);
+			ZNetView.m_forceDisableInit = false;
 			var ani = odin.GetComponentInChildren<Animator>();
 
-			DestroyImmediate(odin.GetComponent<ZNetView>());
+			// m_forceDisableInit above prevents ZNetView.Awake() from registering,
+			// but strip the component entirely so it doesn't interfere later.
+			var znv = odin.GetComponent<ZNetView>();
+			if (znv != null) DestroyImmediate(znv);
 			DestroyImmediate(odin.GetComponent<ZSyncTransform>());
 			DestroyImmediate(odin.GetComponent<Odin>());
 			DestroyImmediate(odin.GetComponent<Rigidbody>());
@@ -129,8 +163,8 @@ namespace OdinPlus
 		}
 		private static void InitOdinPot()
 		{
-			// TODO: Valheim 0.221.12 - OdinTrader disabled (TMP_Text UI dependency)
-			/*
+			// CopyChildren only clones the prefab's CHILDREN (not its root), so the piece's own
+			// root-level ZNetView/Piece components are never copied - no m_instances entry risk.
 			var pfire = ZNetScene.instance.GetPrefab("fire_pit");
 			var pcaul = ZNetScene.instance.GetPrefab("piece_cauldron");
 			var fire = CopyChildren(pfire);
@@ -159,7 +193,6 @@ namespace OdinPlus
 					m_price = OdinData.MeadsValue[item.Key]
 				});
 			}
-			*/
 		}
 		private static void InitOdinChest()
 		{
@@ -167,15 +200,58 @@ namespace OdinPlus
 		private static void InitShaman()
 		{
 			var prefab = ZNetScene.instance.GetPrefab("GoblinShaman");
-			var go = Instantiate(prefab, Root.transform);
-			go.transform.localPosition = new Vector3(-1.6f, 0, -0.6f);
 
-			DestroyImmediate(prefab.GetComponent<RandomAnimation>());
+			// See InitOdinGod() for why this guard matters: prevents ZNetView.Awake() from
+			// registering a ZDO/m_instances entry for this decorative clone in the first place,
+			// instead of destroying components after the fact (which was the previous approach
+			// in OdinShaman.Start() - a deferred MonoBehaviour callback that ran too late,
+			// letting the original creature's MonsterAI/Character/ZSyncTransform components run
+			// at least one Awake/Start pass first and reposition/rotate the clone using real
+			// world/ZDO data before cleanup ever got a chance to strip them).
+			ZNetView.m_forceDisableInit = true;
+			var go = Instantiate(prefab, Root.transform);
+			ZNetView.m_forceDisableInit = false;
+
+			var znv = go.GetComponent<ZNetView>();
+			if (znv != null) DestroyImmediate(znv);
+
+			// Bug fix: this used to destroy RandomAnimation on 'prefab' (the shared template
+			// used for every future GoblinShaman spawn in the world), not on 'go' (our clone).
+			var randomAnim = go.GetComponent<RandomAnimation>();
+			if (randomAnim != null) DestroyImmediate(randomAnim);
+
+			// CharacterAnimEvent lives on a CHILD (the model/rig object), not the root, and its
+			// Awake() does `GetComponentInParent<Character>().GetComponent<ZNetView>()` with no
+			// null-check. It must be stripped before Root.SetActive(true) fires Awake() on the
+			// whole subtree, otherwise it NREs once Humanoid/Character below is gone.
+			foreach (var animEvent in go.GetComponentsInChildren<CharacterAnimEvent>(true))
+			{
+				DestroyImmediate(animEvent);
+			}
+
+			DestroyImmediate(go.GetComponent<ZSyncAnimation>());
+			DestroyImmediate(go.GetComponent<ZSyncTransform>());
+			DestroyImmediate(go.GetComponent<MonsterAI>());
+			DestroyImmediate(go.GetComponent<VisEquipment>());
+			DestroyImmediate(go.GetComponent<CharacterDrop>());
+			DestroyImmediate(go.GetComponent<Humanoid>());
+			DestroyImmediate(go.GetComponent<FootStep>());
+			DestroyImmediate(go.GetComponent<Rigidbody>());
+			foreach (var comp in go.GetComponents<Component>())
+			{
+				if (!(comp is Transform) && !(comp is CapsuleCollider))
+				{
+					DestroyImmediate(comp);
+				}
+			}
 
 			var npc = go.AddComponent<OdinShaman>();
 			npc.m_name = "$op_shaman";
 			m_odinShaman = npc;
 
+			// Set final placement AFTER all stripping/cleanup so nothing can move it afterward.
+			go.transform.localPosition = new Vector3(-1.6f, 0, -0.6f);
+			go.transform.Rotate(0, 30f, 0);
 		}
 		private static void InitMunin()
 		{
