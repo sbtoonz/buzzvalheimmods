@@ -14,7 +14,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Globalization;
 using UnityEngine.UI;
-using Newtonsoft.Json;
 
 //|| ||DEBUG How to
 //Right Ctrl + keypad[0-5] global key sets (how many kinds of boss have you defeated,quest is based on that)
@@ -28,7 +27,7 @@ namespace OdinPlus
 	public class DevTool : MonoBehaviour
 	{
 		public static bool DisableSaving = false;
-		public static List<string> UnLocal = new List<string>();
+		public static HashSet<string> UnLocal = new HashSet<string>();
 		public static DevTool instance;
 		private Action postZone;
 
@@ -54,7 +53,8 @@ namespace OdinPlus
 		}
 		private void Update()
 		{
-			if (Input.GetKeyDown(KeyCode.Alpha0) && Input.GetKey(KeyCode.RightControl))
+			if (!Input.GetKey(KeyCode.RightControl)) return;
+			if (Input.GetKeyDown(KeyCode.Alpha0))
 			{
 				DisableSaving = true;
 			}
@@ -62,83 +62,18 @@ namespace OdinPlus
 			{
 				return;
 			}
-			if (Input.GetKeyDown(KeyCode.F8) && Input.GetKey(KeyCode.RightControl))
-			{
-				OdinPlus.m_instance.Reset();
-			}
-			if (Input.GetKeyDown(KeyCode.F6) && Input.GetKey(KeyCode.RightControl))
-			{
-				OdinPlus.UnRegister();
-				Destroy(Plugin.OdinPlusRoot);
-			}
-			if (Input.GetKeyDown(KeyCode.F9) && Input.GetKey(KeyCode.RightControl))
-			{
-				PrintMeadsLoc();
-			}
-			if (Input.GetKeyDown(KeyCode.F10) && Input.GetKey(KeyCode.RightControl))
-			{
-				PrintUnLoc();
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad0) && Input.GetKey(KeyCode.RightControl))
-			{
-				RequestResetGlobalKey();
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad1) && Input.GetKey(KeyCode.RightControl))
-			{
-				RequestResetGlobalKey();
-				RequestSetGlobalKey("defeated_eikthyr");
-			}
-
-			if (Input.GetKeyDown(KeyCode.Keypad2) && Input.GetKey(KeyCode.RightControl))
-			{
-				RequestResetGlobalKey();
-				RequestSetGlobalKey("defeated_eikthyr");
-				RequestSetGlobalKey("defeated_gdking");
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad3) && Input.GetKey(KeyCode.RightControl))
-			{
-				RequestResetGlobalKey();
-				RequestSetGlobalKey("defeated_eikthyr");
-				RequestSetGlobalKey("defeated_gdking");
-				RequestSetGlobalKey("defeated_bonemass");
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad4) && Input.GetKey(KeyCode.RightControl))
-			{
-				RequestResetGlobalKey();
-				RequestSetGlobalKey("defeated_eikthyr");
-				RequestSetGlobalKey("defeated_gdking");
-				RequestSetGlobalKey("defeated_bonemass");
-				RequestSetGlobalKey("defeated_moder");
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad5) && Input.GetKey(KeyCode.RightControl))
-			{
-				RequestResetGlobalKey();
-				RequestSetGlobalKey("defeated_eikthyr");
-				RequestSetGlobalKey("defeated_gdking");
-				RequestSetGlobalKey("defeated_bonemass");
-				RequestSetGlobalKey("defeated_moder");
-				RequestSetGlobalKey("defeated_goblinking");
-			}
-			if (Input.GetKeyDown(KeyCode.Period) && Input.GetKey(KeyCode.RightControl))
-			{
-				GameCamera.instance.ToggleFreeFly();
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad7) && Input.GetKey(KeyCode.RightControl))
-			{
-
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad8) && Input.GetKey(KeyCode.RightControl))
-			{
-
-			}
-			if (Input.GetKeyDown(KeyCode.Keypad9) && Input.GetKey(KeyCode.RightControl))
-			{
-
-			}
-			if (Input.GetKeyDown(KeyCode.Comma) && Input.GetKey(KeyCode.RightControl))
-			{
-				ShowWindow = !ShowWindow;
-			}
+			if (Input.GetKeyDown(KeyCode.F8)) OdinPlus.m_instance.Reset();
+			else if (Input.GetKeyDown(KeyCode.F6)) { OdinPlus.UnRegister(); Destroy(Plugin.OdinPlusRoot); }
+			else if (Input.GetKeyDown(KeyCode.F9)) PrintMeadsLoc();
+			else if (Input.GetKeyDown(KeyCode.F10)) PrintUnLoc();
+			else if (Input.GetKeyDown(KeyCode.Keypad0)) RequestResetGlobalKey();
+			else if (Input.GetKeyDown(KeyCode.Keypad1)) { RequestResetGlobalKey(); RequestSetGlobalKey("defeated_eikthyr"); }
+			else if (Input.GetKeyDown(KeyCode.Keypad2)) { RequestResetGlobalKey(); RequestSetGlobalKey("defeated_eikthyr"); RequestSetGlobalKey("defeated_gdking"); }
+			else if (Input.GetKeyDown(KeyCode.Keypad3)) { RequestResetGlobalKey(); RequestSetGlobalKey("defeated_eikthyr"); RequestSetGlobalKey("defeated_gdking"); RequestSetGlobalKey("defeated_bonemass"); }
+			else if (Input.GetKeyDown(KeyCode.Keypad4)) { RequestResetGlobalKey(); RequestSetGlobalKey("defeated_eikthyr"); RequestSetGlobalKey("defeated_gdking"); RequestSetGlobalKey("defeated_bonemass"); RequestSetGlobalKey("defeated_moder"); }
+			else if (Input.GetKeyDown(KeyCode.Keypad5)) { RequestResetGlobalKey(); RequestSetGlobalKey("defeated_eikthyr"); RequestSetGlobalKey("defeated_gdking"); RequestSetGlobalKey("defeated_bonemass"); RequestSetGlobalKey("defeated_moder"); RequestSetGlobalKey("defeated_goblinking"); }
+			else if (Input.GetKeyDown(KeyCode.Period)) GameCamera.instance.ToggleFreeFly();
+			else if (Input.GetKeyDown(KeyCode.Comma)) ShowWindow = !ShowWindow;
 		}
 
 		#endregion Mono
@@ -147,17 +82,18 @@ namespace OdinPlus
 		Rect windowRect = new Rect(200, 200, 400, 800);
 		public bool ShowWindow = false;
 		public string lname = "HelloWorld";
-		GUIStyle style;
+		private GUIStyle _cachedStyle;
 		private void OnGUI()
 		{
-			if (ShowWindow)
+			if (!ShowWindow) return;
+			if (_cachedStyle == null)
 			{
-				style = new GUIStyle();
-				style.fontSize = 30;
-				style.normal.textColor = Color.white;
-				GUI.backgroundColor = Color.black;
-				windowRect = GUILayout.Window(1219, windowRect, DevWindow, "Buzz Odin Plus Debug");
+				_cachedStyle = new GUIStyle();
+				_cachedStyle.fontSize = 30;
+				_cachedStyle.normal.textColor = Color.white;
 			}
+			GUI.backgroundColor = Color.black;
+			windowRect = GUILayout.Window(1219, windowRect, DevWindow, "Buzz Odin Plus Debug");
 		}
 		void DevWindow(int WindowID)
 		{
@@ -166,13 +102,13 @@ namespace OdinPlus
 
 			GUILayout.Width(400);
 			GUILayout.Height(50);
-			GUILayout.Label("welcom to use odin plus debug tool", style);
+			GUILayout.Label("welcom to use odin plus debug tool", _cachedStyle);
 			var player = Player.m_localPlayer;
 			if (player != null)
 			{
 				var val = ZoneSystem.GetZone(player.transform.position);
-				GUILayout.Label("Zone: " + val.ToString(), style);
-				GUILayout.Label("Location: " + (player.transform.position).ToString(), style);
+				GUILayout.Label("Zone: " + val.ToString(), _cachedStyle);
+				GUILayout.Label("Location: " + (player.transform.position).ToString(), _cachedStyle);
 
 				if (ZNet.instance != null)
 				{
@@ -183,11 +119,11 @@ namespace OdinPlus
 						if (dic.ContainsKey(val))
 						{
 							string locName = dic[val].m_location.m_prefabName;
-							GUILayout.Label(locName, style);
+							GUILayout.Label(locName, _cachedStyle);
 						}
 						else
 						{
-							GUILayout.Label("No location here", style);
+							GUILayout.Label("No location here", _cachedStyle);
 						}
 					}
 					GUILayout.BeginHorizontal();
@@ -329,8 +265,10 @@ namespace OdinPlus
 			var a = GameObject.Instantiate(ZNetScene.instance.GetPrefab("Fenring"), Player.m_localPlayer.transform.position + Vector3.up + Vector3.forward * 2, Quaternion.identity);
 			if (OdinSE.MonsterSEList.Count > 4)
 			{
-				var seKey = OdinSE.MonsterSEList.Keys.ElementAt(4);
-				Traverse.Create(a.GetComponent<Humanoid>()).Field<SEMan>("m_seman").Value.AddStatusEffect(seKey);
+				// TODO: Status effect assignment requires StatusEffect name/hash, not string key
+				// var seKey = OdinSE.MonsterSEList.Keys.ElementAt(4);
+				// var seman = Traverse.Create(a.GetComponent<Humanoid>()).Field<SEMan>("m_seman").Value;
+				// if (seman != null) seman.AddStatusEffect(seKey);
 			}
 		}
 		#endregion Task
@@ -385,14 +323,8 @@ namespace OdinPlus
 		{
 			private static void Postfix(ref string __result)
 			{
-				if (__result.StartsWith("["))
-				{
-					if (UnLocal.Contains(__result))
-					{
-						return;
-					}
+				if (__result.Length > 0 && __result[0] == '[')
 					UnLocal.Add(__result);
-				}
 			}
 		}
 
@@ -483,12 +415,14 @@ namespace OdinPlus
 		}
 		public static void RPC_ServerResetGlobalKey(long sender)
 		{
+			if (!ZNet.instance.IsServer()) return;
 			ZoneSystem.instance.ResetGlobalKeys();
 			DBG.blogWarning("Client Request Reset Global key");
 
 		}
 		public static void RPC_ServerSetGlobalKey(long sender, string gkey)
 		{
+			if (!ZNet.instance.IsServer()) return;
 			ZoneSystem.instance.SetGlobalKey(gkey);
 			DBG.blogWarning("Server set Global key: " + gkey);
 		}
@@ -508,11 +442,12 @@ namespace OdinPlus
 		public static void LoadDebugSavingData()
 		{
 			string file = Path.Combine(Application.persistentDataPath, (SaveDataFileName + ".odinplus"));
-			FileStream fileStream = new FileStream(@file, FileMode.Open, FileAccess.Read);
-			BinaryReader binaryReader = new BinaryReader(fileStream);
-			var str = binaryReader.ReadString();
-			SaveDataDebug=JsonConvert.DeserializeObject<OdinData.DataTable>(str);
-			fileStream.Close();
+			// TODO: Migrate to YamlDotNet
+			//FileStream fileStream = new FileStream(@file, FileMode.Open, FileAccess.Read);
+			//BinaryReader binaryReader = new BinaryReader(fileStream);
+			//var str = binaryReader.ReadString();
+			//SaveDataDebug=JsonConvert.DeserializeObject<OdinData.DataTable>(str);
+			//fileStream.Close();
 		}
 
 
