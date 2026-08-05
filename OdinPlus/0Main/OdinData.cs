@@ -4,7 +4,8 @@ using System.IO;
 using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
-using Newtonsoft.Json;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 
 namespace OdinPlus
 {
@@ -16,8 +17,8 @@ namespace OdinPlus
 		public class DataTable
 		{
 			public int Credits = 100;
-			public bool hasWolf = false;
-			public bool hasTroll = false;
+			public bool HasWolf = false;
+			public bool HasTroll = false;
 			public List<string> BlackList = new List<string>();
 			public int QuestCount = 0;
 			public Dictionary<string, int> SearchTaskList = new Dictionary<string, int>();
@@ -157,20 +158,19 @@ namespace OdinPlus
 			#endregion Save
 
 			#region Serialize
-			string file = Path.Combine(Application.persistentDataPath, (name + ".odinplus"));
-			if (File.Exists(@file))
+			try
 			{
-				//add Backup
+				string file = Path.Combine(Application.persistentDataPath, (name + ".odinplus"));
+				var serializer = new SerializerBuilder()
+					.WithNamingConvention(PascalCaseNamingConvention.Instance)
+					.Build();
+				string yaml = serializer.Serialize(Data);
+				File.WriteAllText(file, yaml);
 			}
-			FileStream fileStream = new FileStream(@file, FileMode.Create, FileAccess.Write);
-			string dat = JsonConvert.SerializeObject(Data);
-			BinaryWriter binaryWriter= new BinaryWriter(fileStream);
-			binaryWriter.Write(dat);
-			binaryWriter.Flush();
-			binaryWriter.Close();
-			//BinaryFormatter formatter = new BinaryFormatter();
-			//formatter.Serialize(fileStream, Data);
-			fileStream.Close();
+			catch (Exception e)
+			{
+				DBG.blogWarning("Failed to save OdinData: " + e.Message);
+			}
 			#endregion Serialize
 
 			DBG.blogWarning("OdinDataSaved:" + name);
@@ -193,13 +193,22 @@ namespace OdinPlus
 				return;
 			}
 			
-			FileStream fileStream = new FileStream(@file, FileMode.Open, FileAccess.Read);
-			//BinaryFormatter formatter = new BinaryFormatter();
-			//Data = (DataTable)formatter.Deserialize(fileStream);
-			BinaryReader binaryReader = new BinaryReader(fileStream);
-			var str = binaryReader.ReadString();
-			Data=JsonConvert.DeserializeObject<DataTable>(str);
-			fileStream.Close();
+			try
+			{
+				string yaml = File.ReadAllText(file);
+				var deserializer = new DeserializerBuilder()
+					.WithNamingConvention(PascalCaseNamingConvention.Instance)
+					.IgnoreUnmatchedProperties()
+					.Build();
+				Data = deserializer.Deserialize<DataTable>(yaml);
+			}
+			catch (Exception e)
+			{
+				DBG.blogWarning("Failed to load OdinData (may be old format): " + e.Message);
+				Credits = 100;
+				OdinPlus.m_instance.isLoaded = true;
+				return;
+			}
 			#endregion Serial
 
 			#region Load

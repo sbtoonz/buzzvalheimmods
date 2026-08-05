@@ -55,6 +55,7 @@ namespace OdinPlus
 		public static Dictionary<string, FactionQuestDef> AvailableQuests = new Dictionary<string, FactionQuestDef>();
 		private static Dictionary<string, Dictionary<string, int>> _playerProgress = new Dictionary<string, Dictionary<string, int>>();
 		private static string _configPath;
+		private static string _cachedYaml;
 
 		public static void LoadQuests(string yamlPath)
 		{
@@ -69,6 +70,7 @@ namespace OdinPlus
 				}
 
 				string yaml = File.ReadAllText(yamlPath);
+				_cachedYaml = yaml;
 				ParseYaml(yaml);
 			}
 			catch (Exception ex)
@@ -78,21 +80,62 @@ namespace OdinPlus
 			}
 		}
 
+		// No sync scaffolding existed for this system at all before this pass - built from scratch
+		// using FactionManager's RPC pattern as the template.
+		public static void RegisterRpc()
+		{
+			ZRoutedRpc.instance.Register<string>("FactionQuestSync", new Action<long, string>(RPC_FactionQuestSync));
+			ZRoutedRpc.instance.Register("RequestFactionQuestSync", new Action<long>(RPC_RequestFactionQuestSync));
+		}
+
+		public static void BroadcastSync()
+		{
+			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "FactionQuestSync", _cachedYaml);
+		}
+
+		public static void RequestSyncFromServer()
+		{
+			if (ZNet.instance == null || ZNet.instance.IsServer()) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "RequestFactionQuestSync");
+		}
+
+		private static void RPC_FactionQuestSync(long sender, string yaml)
+		{
+			if (ZNet.instance.IsServer()) return;
+			_cachedYaml = yaml;
+			ParseYaml(yaml);
+		}
+
+		private static void RPC_RequestFactionQuestSync(long sender)
+		{
+			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "FactionQuestSync", _cachedYaml);
+		}
+
 		private static void ParseYaml(string yaml)
 		{
-			var deserializer = new DeserializerBuilder()
-				.WithNamingConvention(PascalCaseNamingConvention.Instance)
-				.Build();
-
-			var config = deserializer.Deserialize<FactionQuestConfig>(yaml);
-			AvailableQuests.Clear();
-
-			foreach (var quest in config.Quests)
+			try
 			{
-				AvailableQuests[quest.ID] = quest;
-			}
+				var deserializer = new DeserializerBuilder()
+					.WithNamingConvention(PascalCaseNamingConvention.Instance)
+					.Build();
 
-			Plugin.logger.LogInfo($"[FactionQuests] Loaded {AvailableQuests.Count} quests");
+				var config = deserializer.Deserialize<FactionQuestConfig>(yaml);
+				if (config?.Quests == null) return;
+				AvailableQuests.Clear();
+
+				foreach (var quest in config.Quests)
+				{
+					AvailableQuests[quest.ID] = quest;
+				}
+
+				Plugin.logger.LogInfo($"[FactionQuests] Loaded {AvailableQuests.Count} quests");
+			}
+			catch (Exception e)
+			{
+				DBG.blogWarning("[FactionQuests] Failed to parse YAML: " + e.Message);
+			}
 		}
 
 		private static void CreateDefaultQuests(string path)
@@ -210,6 +253,7 @@ namespace OdinPlus
           Quality: 1
 ";
 			File.WriteAllText(path, yaml);
+			_cachedYaml = yaml;
 			ParseYaml(yaml);
 		}
 

@@ -25,6 +25,10 @@ namespace OdinPlus
 		public int UnfriendlyThreshold { get; set; } = -10;
 		public int NeutralThreshold { get; set; } = 10;
 		public int FriendlyThreshold { get; set; } = 30;
+		// Blueprint names this faction's BuilderNPCs should build, in priority order. Empty/omitted
+		// falls back to every blueprint whose own AllowedFactions permits this faction (or any
+		// blueprint at all if that's also empty) - see BuilderNPC.GetEligibleBlueprints.
+		public List<string> AssignedBlueprints { get; set; } = new List<string>();
 	}
 
 	public class FactionConfig
@@ -53,6 +57,39 @@ namespace OdinPlus
 		private static FileSystemWatcher _fileWatcher;
 		private static string _configPath;
 		private static string _cachedYaml;
+		private static DateTime _lastReloadTime = DateTime.MinValue;
+
+		// None of these RPCs were ever registered with ZRoutedRpc before this pass - InvokeRoutedRPC
+		// calls to "FactionConfigSync"/"ReputationChange"/etc silently went nowhere. Combined into
+		// Plugin.RegRPC (see OdinPlus.Awake), same pattern QuestManager/LocationManager already use.
+		public static void RegisterRpc()
+		{
+			ZRoutedRpc.instance.Register<string>("FactionConfigSync", new Action<long, string>(RPC_FactionConfigSync));
+			ZRoutedRpc.instance.Register<string, string, int>("ReputationChange", new Action<long, string, string, int>(RPC_ReputationChange));
+			ZRoutedRpc.instance.Register<string, string, int>("ReputationUpdate", new Action<long, string, string, int>(RPC_ReputationUpdate));
+			ZRoutedRpc.instance.Register<string>("ReputationSync", new Action<long, string>(RPC_ReputationSync));
+			ZRoutedRpc.instance.Register("RequestFactionSync", new Action<long>(RPC_RequestFactionSync));
+		}
+
+		// Broadcast covers the common case (dedicated server boots before players join). A player
+		// joining later requests sync themselves (see RequestSyncFromServer), covering the late-join case.
+		public static void BroadcastSync()
+		{
+			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "FactionConfigSync", _cachedYaml);
+		}
+
+		public static void RequestSyncFromServer()
+		{
+			if (ZNet.instance == null || ZNet.instance.IsServer()) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "RequestFactionSync");
+		}
+
+		private static void RPC_RequestFactionSync(long sender)
+		{
+			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "FactionConfigSync", _cachedYaml);
+		}
 
 		public static void LoadConfig(string yamlPath)
 		{
@@ -92,15 +129,23 @@ namespace OdinPlus
 
 		private static void ParseYaml(string yaml)
 		{
-			var deserializer = new DeserializerBuilder()
-				.WithNamingConvention(PascalCaseNamingConvention.Instance)
-				.Build();
+			try
+			{
+				var deserializer = new DeserializerBuilder()
+					.WithNamingConvention(PascalCaseNamingConvention.Instance)
+					.Build();
 
-			var config = deserializer.Deserialize<FactionConfig>(yaml);
-			Factions = config.Factions;
-			EventValues = config.ReputationEvents;
+				var config = deserializer.Deserialize<FactionConfig>(yaml);
+				if (config?.Factions == null) return;
+				Factions = config.Factions;
+				EventValues = config.ReputationEvents;
 
-			Plugin.logger.LogInfo($"[FactionManager] Loaded {Factions.Count} factions");
+				Plugin.logger.LogInfo($"[FactionManager] Loaded {Factions.Count} factions");
+			}
+			catch (Exception e)
+			{
+				DBG.blogWarning("[FactionManager] Failed to parse faction YAML: " + e.Message);
+			}
 		}
 
 		public static void RPC_FactionConfigSync(long sender, string yaml)
@@ -188,9 +233,11 @@ namespace OdinPlus
 
 		private static void OnConfigFileChanged(object sender, FileSystemEventArgs e)
 		{
-			// Debounce - file system can fire multiple events
-			System.Threading.Thread.Sleep(100);
+			// Debounce - file system fires multiple events, skip if changed within 0.5s
+			if ((DateTime.Now - _lastReloadTime).TotalSeconds < 0.5)
+				return;
 
+			_lastReloadTime = DateTime.Now;
 			Plugin.logger.LogInfo($"[FactionManager] Config file changed, reloading...");
 			LoadFromFile(_configPath);
 		}

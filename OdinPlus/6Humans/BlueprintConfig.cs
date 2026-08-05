@@ -29,6 +29,8 @@ namespace OdinPlus
 		public string Name { get; set; }
 		public Dictionary<string, int> ResourceCosts { get; set; } = new Dictionary<string, int>();
 		public List<BlueprintPieceData> Pieces { get; set; } = new List<BlueprintPieceData>();
+		// Optional: NPC faction names allowed to build this blueprint. Omit or leave empty for "any faction".
+		public List<string> AllowedFactions { get; set; } = new List<string>();
 	}
 
 	[Serializable]
@@ -76,6 +78,7 @@ namespace OdinPlus
 				// Update Blueprints.All with loaded data
 				Blueprints.All.Clear();
 				Blueprints.All.AddRange(_loadedBlueprints.Values);
+				SyncVillagersAssignment();
 			}
 			catch (Exception ex)
 			{
@@ -101,7 +104,7 @@ namespace OdinPlus
 					new Vector3(p.RotX, p.RotY, p.RotZ)
 				)).ToArray();
 
-				var blueprint = new Blueprint(bpData.Name, bpData.ResourceCosts, pieces);
+				var blueprint = new Blueprint(bpData.Name, bpData.ResourceCosts, pieces, bpData.AllowedFactions);
 				_loadedBlueprints[bpData.Name] = blueprint;
 
 				DBG.blogInfo($"[BlueprintConfig] Loaded '{bpData.Name}' from {Path.GetFileName(filePath)}");
@@ -117,31 +120,53 @@ namespace OdinPlus
 		/// </summary>
 		public static void ParseYaml(string yaml)
 		{
-			var deserializer = new DeserializerBuilder()
-				.WithNamingConvention(PascalCaseNamingConvention.Instance)
-				.Build();
-
-			var config = deserializer.Deserialize<BlueprintConfigFile>(yaml);
-			_loadedBlueprints.Clear();
-
-			foreach (var bpData in config.Blueprints)
+			try
 			{
-				// Convert YAML data to Blueprint object
-				var pieces = bpData.Pieces.Select(p => new BlueprintPiece(
-					p.PrefabName,
-					new Vector3(p.PosX, p.PosY, p.PosZ),
-					new Vector3(p.RotX, p.RotY, p.RotZ)
-				)).ToArray();
+				var deserializer = new DeserializerBuilder()
+					.WithNamingConvention(PascalCaseNamingConvention.Instance)
+					.Build();
 
-				var blueprint = new Blueprint(bpData.Name, bpData.ResourceCosts, pieces);
-				_loadedBlueprints[bpData.Name] = blueprint;
+				var config = deserializer.Deserialize<BlueprintConfigFile>(yaml);
+				if (config?.Blueprints == null) return;
+				_loadedBlueprints.Clear();
+
+				foreach (var bpData in config.Blueprints)
+				{
+					var pieces = bpData.Pieces.Select(p => new BlueprintPiece(
+						p.PrefabName,
+						new Vector3(p.PosX, p.PosY, p.PosZ),
+						new Vector3(p.RotX, p.RotY, p.RotZ)
+					)).ToArray();
+
+					var blueprint = new Blueprint(bpData.Name, bpData.ResourceCosts, pieces, bpData.AllowedFactions);
+					_loadedBlueprints[bpData.Name] = blueprint;
+				}
+
+				DBG.blogInfo($"[BlueprintConfig] Loaded {_loadedBlueprints.Count} blueprints from sync YAML");
+
+				Blueprints.All.Clear();
+				Blueprints.All.AddRange(_loadedBlueprints.Values);
+				SyncVillagersAssignment();
 			}
+			catch (Exception e)
+			{
+				DBG.blogWarning("[BlueprintConfig] Failed to parse blueprint YAML: " + e.Message);
+			}
+		}
 
-			DBG.blogInfo($"[BlueprintConfig] Loaded {_loadedBlueprints.Count} blueprints from sync YAML");
-
-			// Update Blueprints.All with loaded data
-			Blueprints.All.Clear();
-			Blueprints.All.AddRange(_loadedBlueprints.Values);
+		// BuilderNPC.FactionName defaults to "Villagers", but no faction_config.yaml ever actually
+		// defines a "Villagers" faction - relying on the implicit "empty AllowedFactions = any faction"
+		// fallback made it impossible to tell a genuinely-broken assignment from a merely-implicit one.
+		// Explicitly (re)assign every currently-loaded blueprint every time the list changes (initial
+		// load, a new blueprint saved mid-session, or a sync from server) so Builder NPCs always have a
+		// real, visible assignment.
+		private static void SyncVillagersAssignment()
+		{
+			if (!FactionManager.Factions.ContainsKey("Villagers"))
+			{
+				FactionManager.Factions["Villagers"] = new FactionDef { Name = "Villagers" };
+			}
+			FactionManager.Factions["Villagers"].AssignedBlueprints = Blueprints.All.Select(bp => bp.name).ToList();
 		}
 
 		/// <summary>
@@ -160,6 +185,7 @@ namespace OdinPlus
 			{
 				Name = blueprint.name,
 				ResourceCosts = new Dictionary<string, int>(blueprint.resourceCosts),
+				AllowedFactions = blueprint.allowedFactions != null ? new List<string>(blueprint.allowedFactions) : new List<string>(),
 				Pieces = blueprint.pieces.Select(p => new BlueprintPieceData
 				{
 					PrefabName = p.prefabName,
@@ -288,6 +314,40 @@ namespace OdinPlus
 		{
 			DBG.blogInfo("[BlueprintConfig] Received blueprints from server");
 			ParseYaml(yaml);
+		}
+
+		// These sync methods existed but were never wired to an actual RPC before this pass -
+		// GetYamlForSync()/ReceiveYamlFromServer() had zero callers anywhere in the project.
+		public static void RegisterRpc()
+		{
+			ZRoutedRpc.instance.Register<string>("BlueprintConfigSync", new Action<long, string>(RPC_BlueprintConfigSync));
+			ZRoutedRpc.instance.Register("RequestBlueprintSync", new Action<long>(RPC_RequestBlueprintSync));
+		}
+
+		// Broadcast covers the common case (dedicated server boots before players join). A player
+		// joining later requests sync themselves (see RequestSyncFromServer), covering the late-join case.
+		public static void BroadcastSync()
+		{
+			if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "BlueprintConfigSync", GetYamlForSync());
+		}
+
+		public static void RequestSyncFromServer()
+		{
+			if (ZNet.instance == null || ZNet.instance.IsServer()) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "RequestBlueprintSync");
+		}
+
+		private static void RPC_BlueprintConfigSync(long sender, string yaml)
+		{
+			if (ZNet.instance.IsServer()) return; // Server doesn't need its own broadcast
+			ReceiveYamlFromServer(yaml);
+		}
+
+		private static void RPC_RequestBlueprintSync(long sender)
+		{
+			if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
+			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "BlueprintConfigSync", GetYamlForSync());
 		}
 	}
 }
