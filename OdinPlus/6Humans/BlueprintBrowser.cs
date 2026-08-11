@@ -225,6 +225,30 @@ namespace OdinPlus
 				if (viewport != null)
 				{
 					_iconListRoot = viewport.Find("IconList") as RectTransform;
+
+					// Add ScrollRect for scrolling support (handles large blueprint counts)
+					var scrollRect = viewport.GetComponent<ScrollRect>();
+					if (scrollRect == null)
+					{
+						scrollRect = viewport.gameObject.AddComponent<ScrollRect>();
+						scrollRect.content = _iconListRoot;
+						scrollRect.viewport = viewport as RectTransform;
+						scrollRect.horizontal = false;
+						scrollRect.vertical = true;
+						scrollRect.scrollSensitivity = 20f;
+						scrollRect.inertia = true;
+						scrollRect.decelerationRate = 0.135f;
+						scrollRect.movementType = ScrollRect.MovementType.Clamped;
+						DBG.blogInfo("[BlueprintBrowser] Added ScrollRect to Viewport");
+					}
+
+					// Add Mask to viewport for proper clipping
+					var mask = viewport.GetComponent<Mask>();
+					if (mask == null)
+					{
+						mask = viewport.gameObject.AddComponent<Mask>();
+						mask.showMaskGraphic = false;
+					}
 				}
 			}
 
@@ -236,6 +260,15 @@ namespace OdinPlus
 			else
 			{
 				DBG.blogInfo($"[BlueprintBrowser] Found IconList at Content/Viewport/IconList, rect: {_iconListRoot.rect}, childCount: {_iconListRoot.childCount}");
+
+				// Make icons 3x bigger (128 → 384)
+				var grid = _iconListRoot.GetComponent<GridLayoutGroup>();
+				if (grid != null)
+				{
+					grid.cellSize = new Vector2(384f, 384f);
+					grid.spacing = new Vector2(10f, 10f);
+					DBG.blogInfo("[BlueprintBrowser] Set icon grid cell size to 384x384");
+				}
 
 				// Find and store the IconTemplate
 				var template = _iconListRoot.Find("IconTemplate");
@@ -401,14 +434,18 @@ namespace OdinPlus
 
 		public void SetText(string text)
 		{
+			DBG.blogInfo($"[BlueprintBrowser] SetText called with: '{text}'");
 			if (string.IsNullOrWhiteSpace(text))
 			{
+				DBG.blogWarning("[BlueprintBrowser] Blueprint name is empty");
 				if (Player.m_localPlayer != null)
 					Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Blueprint name cannot be empty");
 				return;
 			}
 
+			DBG.blogInfo("[BlueprintBrowser] Calling BlueprintSelector.Instance.StartSelection");
 			BlueprintSelector.Instance.StartSelection(text);
+			DBG.blogInfo("[BlueprintBrowser] Hiding browser");
 			HideInternal();
 		}
 

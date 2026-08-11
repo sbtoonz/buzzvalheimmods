@@ -7,7 +7,7 @@ namespace OdinPlus
 	{
 		private static Dictionary<string, Sprite> _cache = new Dictionary<string, Sprite>();
 		private static readonly Vector3 StagePos = new Vector3(0f, -500f, 0f);
-		private const int IconSize = 128;
+		private const int IconSize = 512; // High-res for 384x384 display (was 128)
 
 		public static void ClearCache() => _cache.Clear();
 
@@ -71,21 +71,38 @@ namespace OdinPlus
 					bounds.Encapsulate(r.bounds);
 			}
 
+			// Key light — steep angle to create shadows that reveal structure shape
+			var lightGo = new GameObject("_BlueprintIconLight");
+			var light = lightGo.AddComponent<Light>();
+			light.type = LightType.Directional;
+			light.color = new Color(1f, 0.95f, 0.85f);
+			light.intensity = 1.4f;
+			lightGo.transform.rotation = Quaternion.Euler(45f, -45f, 0f);
+
+			// Fill light from opposite side to keep shadow areas readable
+			var fillGo = new GameObject("_BlueprintIconFill");
+			var fill = fillGo.AddComponent<Light>();
+			fill.type = LightType.Directional;
+			fill.color = new Color(0.6f, 0.7f, 0.9f);
+			fill.intensity = 0.5f;
+			fillGo.transform.rotation = Quaternion.Euler(20f, 135f, 0f);
+
 			// Setup camera
 			var camGo = new GameObject("_BlueprintIconCam");
 			var cam = camGo.AddComponent<Camera>();
 			cam.clearFlags = CameraClearFlags.SolidColor;
-			cam.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0f);
+			cam.backgroundColor = new Color(0.08f, 0.08f, 0.1f, 1f);
 			cam.orthographic = true;
 			cam.enabled = false;
 			cam.cullingMask = ~0;
 			cam.nearClipPlane = 0.01f;
 
-			// Position camera looking at the blueprint from a 45-degree angle above
+			// Isometric angle: front-right, 30° elevation — shows roof + two walls
 			float size = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
-			cam.orthographicSize = size * 0.6f;
-			cam.farClipPlane = size * 4f;
-			Vector3 offset = (Vector3.back + Vector3.up).normalized * size * 1.5f;
+			if (size < 0.1f) size = 5f;
+			cam.orthographicSize = size * 0.85f;
+			cam.farClipPlane = size * 5f;
+			Vector3 offset = Quaternion.Euler(30f, 45f, 0f) * (Vector3.back * size * 2f);
 			camGo.transform.position = bounds.center + offset;
 			camGo.transform.LookAt(bounds.center);
 
@@ -106,6 +123,8 @@ namespace OdinPlus
 			cam.targetTexture = null;
 			RenderTexture.ReleaseTemporary(rt);
 			Object.Destroy(camGo);
+			Object.Destroy(lightGo);
+			Object.Destroy(fillGo);
 			foreach (var go in spawned) Object.Destroy(go);
 
 			var sprite = Sprite.Create(tex, new Rect(0, 0, IconSize, IconSize), new Vector2(0.5f, 0.5f), 100f);

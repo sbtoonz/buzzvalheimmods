@@ -160,6 +160,8 @@ namespace OdinPlus
 		// Explicitly (re)assign every currently-loaded blueprint every time the list changes (initial
 		// load, a new blueprint saved mid-session, or a sync from server) so Builder NPCs always have a
 		// real, visible assignment.
+		public static void EnsureVillagersAssignment() => SyncVillagersAssignment();
+
 		private static void SyncVillagersAssignment()
 		{
 			if (!FactionManager.Factions.ContainsKey("Villagers"))

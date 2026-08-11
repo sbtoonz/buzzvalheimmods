@@ -4,9 +4,6 @@ using UnityEngine;
 
 namespace OdinPlus
 {
-	// The only construction behavior BlueprintTool performs: clone a whole armed blueprint into the
-	// world as one stamp. No single-piece placement, no repair/removal (see OdinItem's
-	// BlueprintToolPieceTable.m_canRemovePieces = false) - this is deliberately not a general hammer.
 	public class BlueprintPlacer : MonoBehaviour
 	{
 		private static BlueprintPlacer _instance;
@@ -14,7 +11,12 @@ namespace OdinPlus
 		private readonly List<GameObject> _ghosts = new List<GameObject>();
 		private Blueprint _armed;
 		private float _yaw;
+		private float _verticalOffset = 0f;
 		private const float PlaceDistance = 20f;
+		private const float VerticalStep = 0.5f;
+
+		private string _selectedFaction = "";
+		private int _factionIndex = 0;
 
 		public static void SetArmed(string blueprintName)
 		{
@@ -40,6 +42,8 @@ namespace OdinPlus
 			ClearGhosts();
 			_armed = Blueprints.All.FirstOrDefault(b => b.name == blueprintName);
 			_yaw = Player.m_localPlayer != null ? Player.m_localPlayer.transform.eulerAngles.y : 0f;
+			_factionIndex = 0;
+			_selectedFaction = GetFactionByIndex(0);
 		}
 
 		private void ClearInternal()
@@ -84,8 +88,26 @@ namespace OdinPlus
 				return;
 			}
 
-			if (Input.mouseScrollDelta.y > 0f) _yaw += 22.5f;
-			else if (Input.mouseScrollDelta.y < 0f) _yaw -= 22.5f;
+			// Tab: cycle faction assignment
+			if (Input.GetKeyDown(KeyCode.Tab))
+			{
+				_factionIndex++;
+				_selectedFaction = GetFactionByIndex(_factionIndex);
+				if (Player.m_localPlayer != null)
+					Player.m_localPlayer.Message(MessageHud.MessageType.Center, $"Faction: {_selectedFaction}");
+			}
+
+			// Scroll wheel: rotate (default) or adjust height (with Shift held)
+			if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+			{
+				if (Input.mouseScrollDelta.y > 0f) _verticalOffset += VerticalStep;
+				else if (Input.mouseScrollDelta.y < 0f) _verticalOffset -= VerticalStep;
+			}
+			else
+			{
+				if (Input.mouseScrollDelta.y > 0f) _yaw += 22.5f;
+				else if (Input.mouseScrollDelta.y < 0f) _yaw -= 22.5f;
+			}
 
 			if (!TryGetPlacementPoint(out Vector3 point))
 			{
@@ -94,21 +116,29 @@ namespace OdinPlus
 			}
 
 			Quaternion rot = Quaternion.Euler(0f, _yaw, 0f);
+			Vector3 placementPoint = point + Vector3.up * _verticalOffset;
 			EnsureGhosts();
 			for (int i = 0; i < _ghosts.Count && i < _armed.pieces.Length; i++)
 			{
 				if (_ghosts[i] == null) continue;
 				var piece = _armed.pieces[i];
-				_ghosts[i].transform.SetPositionAndRotation(point + rot * piece.localPosition, rot * Quaternion.Euler(piece.rotation));
+				_ghosts[i].transform.SetPositionAndRotation(placementPoint + rot * piece.localPosition, rot * Quaternion.Euler(piece.rotation));
 			}
 
+			// Left click: place blueprint
 			if (Input.GetMouseButtonDown(0) && GUIUtility.hotControl == 0)
 			{
-				PlaceBlueprint(point, rot);
+				PlaceBlueprint(placementPoint, rot);
 			}
+			// Right click: cancel placement
 			else if (Input.GetMouseButtonDown(1))
 			{
 				ClearInternal();
+			}
+			// Middle mouse (delete mode): remove nearest build site
+			else if (Input.GetMouseButtonDown(2) && GUIUtility.hotControl == 0)
+			{
+				DeleteNearestBuildSite(placementPoint);
 			}
 		}
 
@@ -142,20 +172,52 @@ namespace OdinPlus
 
 		private void PlaceBlueprint(Vector3 origin, Quaternion rot)
 		{
-			foreach (var piece in _armed.pieces)
-			{
-				var prefab = ZNetScene.instance.GetPrefab(piece.prefabName);
-				if (prefab == null) continue;
-				Vector3 pos = origin + rot * piece.localPosition;
-				Quaternion pieceRot = rot * Quaternion.Euler(piece.rotation);
-				Instantiate(prefab, pos, pieceRot).SetActive(true);
-			}
+			BuildSiteManager.CreateSite(_armed, origin, rot, _selectedFaction);
 
 			if (Player.m_localPlayer != null)
-				Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Placed " + _armed.name);
+				Player.m_localPlayer.Message(MessageHud.MessageType.Center,
+					$"Build site placed: {_armed.name}\nFaction: {_selectedFaction}\nGive resources to their Builder NPC!");
+		}
 
-			// Keep the blueprint armed so the player can stamp several copies in a row (right-click to
-			// cancel) - matches the "just clone a blueprint" framing rather than a one-shot action.
+		private static string GetFactionByIndex(int index)
+		{
+			var factions = new List<string>();
+			foreach (var kv in FactionManager.Factions)
+			{
+				if (kv.Key == "Neutral") continue;
+				factions.Add(kv.Key);
+			}
+			if (factions.Count == 0) return "Villagers";
+			return factions[((index % factions.Count) + factions.Count) % factions.Count];
+		}
+
+		private void DeleteNearestBuildSite(Vector3 pos)
+		{
+			BuildSite nearest = null;
+			float nearestDist = 10f; // Max 10m deletion range
+
+			foreach (var site in BuildSiteManager.Sites)
+			{
+				if (site.claimedBy != null) continue; // Can't delete claimed sites (being built)
+				float dist = Vector3.Distance(pos, site.origin);
+				if (dist < nearestDist)
+				{
+					nearestDist = dist;
+					nearest = site;
+				}
+			}
+
+			if (nearest != null)
+			{
+				BuildSiteManager.RemoveSite(nearest);
+				if (Player.m_localPlayer != null)
+					Player.m_localPlayer.Message(MessageHud.MessageType.Center, $"Deleted build site: {nearest.blueprint.name}");
+			}
+			else
+			{
+				if (Player.m_localPlayer != null)
+					Player.m_localPlayer.Message(MessageHud.MessageType.Center, "No build site nearby to delete");
+			}
 		}
 	}
 }

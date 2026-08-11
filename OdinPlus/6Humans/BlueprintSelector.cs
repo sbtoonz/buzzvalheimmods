@@ -356,6 +356,7 @@ namespace OdinPlus
 		/// </summary>
 		public void StartSelection(string blueprintName)
 		{
+			DBG.blogInfo($"[BlueprintSelector] StartSelection called, _isPlacingMarkers={_isPlacingMarkers}");
 			if (_isPlacingMarkers)
 			{
 				DBG.blogWarning("[BlueprintSelector] Already in selection mode");
@@ -368,11 +369,11 @@ namespace OdinPlus
 			ClearFloodSelection();
 			if (_radiusPreviewSphere != null) { Destroy(_radiusPreviewSphere); _radiusPreviewSphere = null; }
 			_radiusCenter = null;
-			_mode = SelectionMode.Box; // default - keeps existing console commands (scanblueprint etc.) behaving the same
+			_mode = SelectionMode.Box;
 
-			Player.m_localPlayer.Message(MessageHud.MessageType.Center,
-				$"Blueprint Selection: {blueprintName}");
-			DBG.blogInfo($"[BlueprintSelector] Started selection for '{blueprintName}'");
+			if (Player.m_localPlayer != null)
+				Player.m_localPlayer.Message(MessageHud.MessageType.Center, $"Blueprint: {blueprintName} - Place corner 1");
+			DBG.blogInfo($"[BlueprintSelector] Selection started for '{blueprintName}', Update will start listening");
 		}
 
 		private void PlaceMarker()

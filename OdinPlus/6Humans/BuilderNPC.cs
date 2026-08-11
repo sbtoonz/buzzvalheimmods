@@ -21,34 +21,7 @@ namespace OdinPlus
 		private readonly List<string> m_recentlyPlaced = new List<string>();
 		private const int MaxRecentMilestones = 3;
 
-		// How much of each resource the NPC tries to keep in reserve by gathering on its own. Donations
-		// from players are still the fast path and are the only thing that earns Odin bucks (see UseItem) -
-		// self-gathering just means the NPC is never permanently stuck waiting on a player who isn't around.
-		private const int GatherTargetAmount = 40;
-
-		// Self-gathering state - reuses MonsterAI purely for its pathing (MoveTo), matching the same
-		// AddComponentcc<MonsterAI> convention HumanManager already uses for other humanoid NPCs.
-		private enum GatherState { Idle, MovingToResource, Harvesting, Returning }
 		private MonsterAI m_ai;
-		private GatherState m_gatherState = GatherState.Idle;
-		private Component m_gatherTarget;
-		private string m_gatherResourceKey;
-		private Vector3 m_gatherTargetPos;
-		private Vector3 m_homePos;
-		private float m_harvestTimer;
-		private float m_nextGatherScanTime;
-		private const float GatherScanInterval = 5f;
-		private const float GatherRadius = 20f;
-		private const float GatherArriveDist = 2.5f;
-		private const float HarvestDuration = 3f;
-		private const int HarvestYield = 10;
-		// Shared, non-allocating buffer for the periodic resource scan (avoids a GC alloc every 5s per NPC).
-		// 64 is generous for a 20m-radius overlap in a normal Valheim forest/rock cluster.
-		private static readonly Collider[] s_gatherHitsBuffer = new Collider[64];
-
-		// Cached reflection for BaseAI.MoveTo — called per-frame during gather, avoid Traverse overhead
-		private static readonly MethodInfo s_moveToMethod = AccessTools.Method(typeof(BaseAI), "MoveTo");
-		private static readonly object[] s_moveToArgs = new object[4];
 
 		// ZDO keys - persisting build state means an in-progress structure survives save/load and
 		// server restarts instead of silently losing all progress and donated resources (previously
@@ -65,12 +38,8 @@ namespace OdinPlus
 		{
 			base.Awake();
 			ChoiceList = new string[3] { "$op_talk", "What do you need?", "Status" };
-			// Don't set build origin here - calculate it when starting to build
-			m_homePos = transform.position;
+			if (m_hum != null) m_hum.m_faction = Character.Faction.Players;
 			SetupGatherAI();
-			// Stagger the first scan per instance so multiple BuilderNPCs don't all run their
-			// Physics.OverlapSphere scan on the same tick.
-			m_nextGatherScanTime = Time.time + UnityEngine.Random.Range(0f, GatherScanInterval);
 
 			var zdo = m_nview.GetZDO();
 			if (zdo == null) return;
@@ -125,7 +94,21 @@ namespace OdinPlus
 		{
 			if (m_buildCoroutine != null)
 			{
-				Say($"I'm currently building {m_currentBlueprint.name}. Progress: {m_buildStep}/{m_currentBlueprint.pieces.Length}");
+				int percent = m_currentBlueprint.pieces.Length > 0 ? m_buildStep * 100 / m_currentBlueprint.pieces.Length : 100;
+				string msg = $"Building {m_currentBlueprint.name} - {percent}% ({m_buildStep}/{m_currentBlueprint.pieces.Length})";
+				// If waiting on resources, tell the player what's needed
+				int pieceCount = Mathf.Max(1, m_currentBlueprint.pieces.Length);
+				if (!CanAffordPieceShare(m_buildStep, pieceCount))
+					msg += "\n<color=yellow>Waiting for resources!</color>\n" + FormatRemaining(m_currentBlueprint);
+				Say(msg);
+				return;
+			}
+
+			// Check for unclaimed sites assigned to our faction
+			var site = BuildSiteManager.GetUnclaimedSite(transform.position, 50f, FactionName);
+			if (site != null)
+			{
+				Say($"I see a build site for {site.blueprint.name}!\nI need:\n" + FormatRemaining(site.blueprint));
 				return;
 			}
 
@@ -136,7 +119,7 @@ namespace OdinPlus
 			}
 			else
 			{
-				Say("Bring me materials and I'll build something!");
+				Say("Place a blueprint nearby and bring me materials!");
 			}
 		}
 
@@ -194,8 +177,7 @@ namespace OdinPlus
 			return false;
 		}
 
-		// The next eligible blueprint this NPC can't yet afford - used to drive "still need" dialogue.
-		private Blueprint GetNextTarget()
+		public Blueprint GetNextTarget()
 		{
 			return GetEligibleBlueprints().FirstOrDefault(bp => !CanAfford(bp));
 		}
@@ -209,6 +191,21 @@ namespace OdinPlus
 				if (remaining > 0) sb.AppendLine($" - {remaining} {cost.Key}");
 			}
 			return sb.ToString();
+		}
+
+		public void ReceiveMaterials(string key, int amount)
+		{
+			m_resourcePool[key] = GetOrZero(m_resourcePool, key) + amount;
+			PersistResourcePool();
+			CheckForBuildableStructures();
+		}
+
+		public bool IsNeededResourcePublic(string key) => IsNeededResource(key);
+
+		public string FormatRemainingPublic()
+		{
+			var target = GetNextTarget();
+			return target != null ? FormatRemaining(target) : "";
 		}
 
 		private static string FormatPool(Dictionary<string, int> pool)
@@ -254,179 +251,50 @@ namespace OdinPlus
 			m_ai = GetComponent<MonsterAI>();
 			if (m_ai == null)
 			{
-				// Copy MonsterAI from an existing humanoid template purely for its pathing (MoveTo) -
-				// matches the same AddComponentcc<MonsterAI> convention HumanManager already uses when
-				// giving custom humanoid NPCs working AI/navigation.
-				var template = ZNetScene.instance?.GetPrefab("Goblin");
-				var templateAi = template != null ? template.GetComponent<MonsterAI>() : null;
-				if (templateAi == null)
-				{
-					DBG.blogWarning("BuilderNPC: No MonsterAI template found, self-gathering disabled for this NPC");
-					return;
-				}
-
-				m_ai = gameObject.AddComponentcc(templateAi);
-				// The template is a hostile Goblin - force this NPC back to the friendly faction so it
-				// never turns on players/other villagers just because it borrowed the Goblin's AI settings.
-				if (m_hum != null) m_hum.m_faction = Character.Faction.Players;
+				// No MonsterAI on this prefab — self-gathering won't work but UseItem donations still do
+				return;
 			}
-
-			// MonsterAI.UpdateAI is NOT driven by this component's own Update() - it's called by the
-			// global MonoUpdaters.FixedUpdate staggered loop (~20Hz) for every enabled BaseAI in the
-			// scene (see MonoUpdaters.cs / BaseAI.OnEnable registering into BaseAI.Instances), completely
-			// independent of any per-GameObject Update(). Left enabled, MonsterAI's own wander/combat/
-			// flee/sleep logic would run in parallel with (and fight) the manual MoveTo driving below.
-			// We only want MonsterAI for its protected MoveTo pathing helper, which works fine called
-			// directly via reflection even while disabled (it doesn't check m_ai.enabled internally), so
-			// disable it to fully suppress all of its autonomous behavior.
+			// Keep AI disabled by default — only enable briefly for BuildSiteCoroutine pathing
 			m_ai.enabled = false;
 		}
 
-		private void Update()
-		{
-			if (m_ai == null) return;
-			if (ZNet.instance != null && !ZNet.instance.IsServer() && !m_nview.IsOwner()) return;
+		// ponytail: self-gather disabled — per-frame reflection MoveToward on disabled AI caused frame drops
+		// and never actually moved the NPC. Donations via UseItem are the working resource path.
 
-			switch (m_gatherState)
-			{
-				case GatherState.Idle:
-					if (Time.time >= m_nextGatherScanTime)
-					{
-						m_nextGatherScanTime = Time.time + GatherScanInterval;
-						TryStartGathering();
-					}
-					break;
-
-				case GatherState.MovingToResource:
-					if (m_gatherTarget == null)
-					{
-						m_gatherState = GatherState.Returning;
-						break;
-					}
-					if (MoveToward(m_gatherTargetPos, GatherArriveDist))
-					{
-						m_harvestTimer = 0f;
-						m_gatherState = GatherState.Harvesting;
-					}
-					break;
-
-				case GatherState.Harvesting:
-					if (m_gatherTarget == null)
-					{
-						m_gatherState = GatherState.Returning;
-						break;
-					}
-					m_harvestTimer += Time.deltaTime;
-					if (m_harvestTimer >= HarvestDuration)
-					{
-						HarvestTarget();
-						m_gatherState = GatherState.Returning;
-					}
-					break;
-
-				case GatherState.Returning:
-					if (MoveToward(m_homePos, 1f))
-					{
-						m_gatherState = GatherState.Idle;
-					}
-					break;
-			}
-		}
-
-		private bool MoveToward(Vector3 point, float arriveDist)
-		{
-			s_moveToArgs[0] = Time.deltaTime;
-			s_moveToArgs[1] = point;
-			s_moveToArgs[2] = arriveDist;
-			s_moveToArgs[3] = false;
-			return (bool)s_moveToMethod.Invoke(m_ai, s_moveToArgs);
-		}
-
-		private void TryStartGathering()
-		{
-			if (m_gatherState != GatherState.Idle) return;
-
-			// Gather whichever resource is currently scarcer so neither pool starves while waiting on
-			// donations for the other. Self-gathering only ever produces Wood/Stone (that's all
-			// TreeBase/MineRock can yield) - anything else a blueprint needs must come from players.
-			string primary = GetOrZero(m_resourcePool, "Wood") <= GetOrZero(m_resourcePool, "Stone") ? "Wood" : "Stone";
-			string secondary = primary == "Wood" ? "Stone" : "Wood";
-
-			if (GetOrZero(m_resourcePool, primary) < GatherTargetAmount && TryFindResource(primary))
-				return;
-			if (GetOrZero(m_resourcePool, secondary) < GatherTargetAmount && TryFindResource(secondary))
-				return;
-		}
-
-		private bool TryFindResource(string resourceKey)
-		{
-			int hitCount = Physics.OverlapSphereNonAlloc(transform.position, GatherRadius, s_gatherHitsBuffer);
-			Component best = null;
-			float bestDist = float.MaxValue;
-
-			for (int i = 0; i < hitCount; i++)
-			{
-				var col = s_gatherHitsBuffer[i];
-				Component candidate = resourceKey == "Wood"
-					? (Component)col.GetComponentInParent<TreeBase>()
-					: col.GetComponentInParent<MineRock5>() ?? (Component)col.GetComponentInParent<MineRock>();
-
-				if (candidate == null) continue;
-
-				float dist = Vector3.Distance(transform.position, candidate.transform.position);
-				if (dist < bestDist)
-				{
-					bestDist = dist;
-					best = candidate;
-				}
-			}
-
-			if (best == null) return false;
-
-			m_gatherTarget = best;
-			m_gatherResourceKey = resourceKey;
-			m_gatherTargetPos = best.transform.position;
-			m_gatherState = GatherState.MovingToResource;
-			return true;
-		}
-
-		private void HarvestTarget()
-		{
-			if (m_gatherTarget is IDestructible destructible)
-			{
-				var hit = new HitData();
-				hit.m_damage.m_chop = 1000f;
-				hit.m_damage.m_pickaxe = 1000f;
-				hit.m_toolTier = 100;
-				hit.m_point = m_gatherTarget.transform.position;
-				destructible.Damage(hit);
-			}
-
-			m_resourcePool[m_gatherResourceKey] = GetOrZero(m_resourcePool, m_gatherResourceKey) + HarvestYield;
-			PersistResourcePool();
-
-			DBG.blogInfo($"BuilderNPC: Harvested {HarvestYield} {m_gatherResourceKey}, pool now {m_resourcePool[m_gatherResourceKey]}");
-			m_gatherTarget = null;
-			CheckForBuildableStructures();
-		}
 		#endregion SelfGather
+
+		private BuildSite m_claimedSite;
 
 		private void CheckForBuildableStructures()
 		{
-			if (m_buildCoroutine != null)
+			if (m_buildCoroutine != null) return;
+
+			// Only build from player-placed or NPC-created build sites
+			var site = BuildSiteManager.GetUnclaimedSite(transform.position, 50f, FactionName);
+			if (site != null && CanAfford(site.blueprint))
 			{
-				Say("I'm already building!");
-				return;
+				ClaimAndBuildSite(site);
+			}
+		}
+
+		private void ClaimAndBuildSite(BuildSite site)
+		{
+			site.claimedBy = this;
+			m_claimedSite = site;
+			m_currentBlueprint = site.blueprint;
+			m_buildStep = 0;
+			m_buildOrigin = site.origin;
+
+			var zdo = m_nview.GetZDO();
+			if (zdo != null)
+			{
+				zdo.Set(ZK_BuildName, site.blueprint.name);
+				zdo.Set(ZK_BuildStep, 0);
+				zdo.Set(ZK_BuildOrigin, site.origin);
 			}
 
-			foreach (var bp in GetEligibleBlueprints())
-			{
-				if (CanAfford(bp))
-				{
-					StartBuilding(bp);
-					return;
-				}
-			}
+			Say($"I'll build that {site.blueprint.name}!");
+			m_buildCoroutine = StartCoroutine(BuildSiteCoroutine());
 		}
 
 		// Faction YAML can assign specific blueprints to a faction (FactionDef.AssignedBlueprints); if it
@@ -471,29 +339,6 @@ namespace OdinPlus
 			return true;
 		}
 
-		private void StartBuilding(Blueprint bp)
-		{
-			// Set build origin now, in front of current position
-			m_buildOrigin = transform.position + transform.forward * 5f;
-
-			m_currentBlueprint = bp;
-			m_buildStep = 0;
-
-			var zdo = m_nview.GetZDO();
-			if (zdo != null)
-			{
-				zdo.Set(ZK_BuildName, bp.name);
-				zdo.Set(ZK_BuildStep, 0);
-				zdo.Set(ZK_BuildOrigin, m_buildOrigin);
-			}
-
-			// Resources are deducted incrementally as each piece completes (see BuildCoroutine),
-			// not all up-front - matches the rest of the structure existing as blue holograms
-			// until the NPC actually "builds" that specific piece.
-			Say($"I'll start building a {bp.name}! Marking out the plan now...");
-			SpawnGhostsFrom(0);
-			m_buildCoroutine = StartCoroutine(BuildCoroutine());
-		}
 
 		private void SpawnGhostsFrom(int startStep)
 		{
@@ -516,6 +361,108 @@ namespace OdinPlus
 				if (ghost != null) Destroy(ghost);
 			}
 			m_ghosts.Clear();
+		}
+
+		private static readonly AccessTools.FieldRef<BaseAI, Vector3> s_patrolPointRef =
+			AccessTools.FieldRefAccess<BaseAI, Vector3>("m_patrolPoint");
+		private static readonly AccessTools.FieldRef<BaseAI, bool> s_patrolRef =
+			AccessTools.FieldRefAccess<BaseAI, bool>("m_patrol");
+
+		private IEnumerator BuildSiteCoroutine()
+		{
+			Say($"Starting construction of {m_currentBlueprint.name}!");
+
+			// Walk to the build site before starting
+			if (m_ai != null)
+			{
+				// Set patrol point to build origin and enable AI so it paths there
+				s_patrolPointRef(m_ai) = m_buildOrigin;
+				s_patrolRef(m_ai) = true;
+				m_ai.enabled = true;
+
+				float timeout = 30f;
+				float dist = Vector3.Distance(transform.position, m_buildOrigin);
+				while (dist > 3f && timeout > 0f)
+				{
+					yield return new WaitForSeconds(0.5f);
+					timeout -= 0.5f;
+					dist = Vector3.Distance(transform.position, m_buildOrigin);
+				}
+
+				m_ai.enabled = false;
+			}
+
+			yield return new WaitForSeconds(1f);
+
+			int pieceCount = Mathf.Max(1, m_currentBlueprint.pieces.Length);
+
+			while (m_buildStep < m_currentBlueprint.pieces.Length)
+			{
+				// Wait for resources — don't build until we can afford the next piece
+				while (!CanAffordPieceShare(m_buildStep, pieceCount))
+				{
+					yield return new WaitForSeconds(2f);
+				}
+
+				var piece = m_currentBlueprint.pieces[m_buildStep];
+				DeductPieceShare(m_buildStep, pieceCount);
+
+				// Replace the ghost from the site with the real piece
+				if (m_claimedSite != null && m_buildStep < m_claimedSite.ghosts.Count)
+				{
+					var ghost = m_claimedSite.ghosts[m_buildStep];
+					if (ghost != null) Destroy(ghost);
+					m_claimedSite.ghosts[m_buildStep] = null;
+				}
+				PlacePieceRotated(piece);
+				RecordMilestone(piece.prefabName);
+
+				m_buildStep++;
+				var zdo = m_nview.GetZDO();
+				zdo?.Set(ZK_BuildStep, m_buildStep);
+
+				yield return new WaitForSeconds(3f);
+			}
+
+			Say($"{m_currentBlueprint.name} is complete!");
+			var doneZdo = m_nview.GetZDO();
+			doneZdo?.Set(ZK_BuildName, "");
+
+			if (m_claimedSite != null)
+			{
+				BuildSiteManager.RemoveSite(m_claimedSite);
+				m_claimedSite = null;
+			}
+
+			m_buildCoroutine = null;
+			m_currentBlueprint = null;
+			m_buildStep = 0;
+			m_recentlyPlaced.Clear();
+		}
+
+		private bool CanAffordPieceShare(int stepIndex, int pieceCount)
+		{
+			foreach (var cost in m_currentBlueprint.resourceCosts)
+			{
+				int totalForResource = cost.Value;
+				int baseShare = totalForResource / pieceCount;
+				int remainder = totalForResource % pieceCount;
+				int share = baseShare + (stepIndex == pieceCount - 1 ? remainder : 0);
+				if (GetOrZero(m_resourcePool, cost.Key) < share)
+					return false;
+			}
+			return true;
+		}
+
+		private void PlacePieceRotated(BlueprintPiece piece)
+		{
+			var prefab = ZNetScene.instance.GetPrefab(piece.prefabName);
+			if (prefab == null) return;
+			Quaternion siteRot = m_claimedSite != null ? m_claimedSite.rotation : Quaternion.identity;
+			Vector3 worldPos = m_buildOrigin + siteRot * piece.localPosition;
+			Quaternion worldRot = siteRot * Quaternion.Euler(piece.rotation);
+			var go = Instantiate(prefab, worldPos, worldRot);
+			go.SetActive(true);
 		}
 
 		private IEnumerator BuildCoroutine()
@@ -611,21 +558,36 @@ namespace OdinPlus
 			if (m_buildCoroutine != null)
 			{
 				int percent = m_currentBlueprint.pieces.Length > 0 ? m_buildStep * 100 / m_currentBlueprint.pieces.Length : 100;
-				text += $"<color=yellow>Building {m_currentBlueprint.name} - {percent}% complete ({m_buildStep}/{m_currentBlueprint.pieces.Length})</color>\n";
-				if (m_recentlyPlaced.Count > 0)
-					text += $"<color=white>Recently placed: {string.Join(", ", m_recentlyPlaced)}</color>\n";
+				text += $"<color=yellow>Building {m_currentBlueprint.name} - {percent}%</color>\n";
+				text += FormatMaterialStatus(m_currentBlueprint);
 			}
 			else
 			{
 				var target = GetNextTarget();
 				if (target != null)
-					text += $"<color=white>We still need:</color>\n{FormatRemaining(target)}";
+				{
+					text += $"<color=white>Next: {target.name}</color>\n";
+					text += FormatMaterialStatus(target);
+				}
 				else
-					text += "<color=white>No blueprint assigned yet.</color>\n";
+					text += "<color=white>No blueprint assigned.</color>\n";
 			}
 
-			text += "[<color=yellow><b>$KEY_Use</b></color>] Talk";
-			return text;
+			text += "\n[<color=yellow><b>1-8</b></color>] Give materials";
+			text += "\n[<color=yellow><b>$KEY_Use</b></color>] Talk";
+			return Localization.instance.Localize(text);
+		}
+
+		private string FormatMaterialStatus(Blueprint bp)
+		{
+			var sb = new System.Text.StringBuilder();
+			foreach (var cost in bp.resourceCosts)
+			{
+				int have = GetOrZero(m_resourcePool, cost.Key);
+				string color = have >= cost.Value ? "green" : "yellow";
+				sb.AppendLine($"  <color={color}>{cost.Key}: {have}/{cost.Value}</color>");
+			}
+			return sb.ToString();
 		}
 	}
 
