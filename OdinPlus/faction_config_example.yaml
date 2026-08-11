@@ -1,0 +1,116 @@
+# OdinPlus Faction Configuration Example
+# Copy this to: BepInEx/config/faction_config.yaml
+
+Factions:
+  Neutral:
+    Name: Neutral
+    Allies: []
+    Enemies: []
+
+  RedTeam:
+    Name: RedTeam
+    Allies:
+      - GreenTeam
+    Enemies:
+      - BlueTeam
+
+  BlueTeam:
+    Name: BlueTeam
+    Allies: []
+    Enemies:
+      - RedTeam
+
+  GreenTeam:
+    Name: GreenTeam
+    Allies:
+      - RedTeam
+    Enemies: []
+
+  # Example: Add more factions
+  # YellowTeam:
+  #   Name: YellowTeam
+  #   Allies:
+  #     - RedTeam
+  #   Enemies:
+  #     - BlueTeam
+
+# Reputation thresholds (global defaults)
+ReputationEvents:
+  Hostile: -30
+  Unfriendly: -10
+  Neutral: 10
+  Friendly: 30
+  Honored: 50
+
+# Village/NPC Spawn Locations
+# NPCs will spawn at ALL listed locations when they are loaded by the game
+# See LOCATION_NAMES.md for complete list of 160+ location names
+
+# STARTER CONFIG (Meadows only)
+VillageLocations:
+  - WoodFarm1
+
+# BALANCED CONFIG (Multiple biomes, 5 villages)
+# VillageLocations:
+#   - WoodFarm1            # Meadows farm (starter)
+#   - WoodVillage1         # Meadows ruined village
+#   - Vendor_BlackForest   # Black Forest (near Haldor)
+#   - SwampHut3            # Swamp outpost
+#   - StoneHouse1          # Plains stronghold
+
+# DENSE CONFIG (Many spawn points across all safe locations)
+# VillageLocations:
+#   - WoodFarm1
+#   - WoodHouse1
+#   - WoodHouse3
+#   - WoodHouse6
+#   - WoodHouse9
+#   - Ruin1
+#   - Ruin2
+#   - Dolmen01
+#   - SwampHut1
+#   - SwampHut2
+#   - AbandonedLogCabin02
+#   - StoneHouse1
+#   - StoneHouse2
+
+# DANGEROUS CONFIG (High-risk areas with hostile mobs)
+# VillageLocations:
+#   - SunkenCrypt4    # Swamp crypts (draugr)
+#   - DrakeNest01     # Mountains (drakes + wolves)
+#   - GoblinCamp2     # Plains (fulings)
+#   - FireHole        # Swamp surtling spawner
+
+# ALL MEADOWS HOUSES (Maximum peaceful villages)
+# VillageLocations:
+#   - WoodFarm1
+#   - WoodVillage1
+#   - WoodHouse1
+#   - WoodHouse2
+#   - WoodHouse3
+#   - WoodHouse4
+#   - WoodHouse5
+#   - WoodHouse6
+#   - WoodHouse7
+#   - WoodHouse8
+#   - WoodHouse9
+#   - WoodHouse10
+#   - WoodHouse11
+#   - WoodHouse12
+#   - WoodHouse13
+
+# PROGRESSION CONFIG (Unlocks as player advances)
+# Start with Meadows, then add Black Forest, Swamp, Mountain, Plains manually as you progress
+# VillageLocations:
+#   - WoodFarm1              # Tier 1: Meadows
+#   - Vendor_BlackForest     # Tier 2: Black Forest
+#   - SunkenCrypt2           # Tier 3: Swamp
+#   - AbandonedLogCabin02    # Tier 4: Mountains
+#   - StoneHouse1            # Tier 5: Plains
+
+# NOTES:
+# - Location names are CASE-SENSITIVE (use exact spelling)
+# - Not all locations spawn in every world seed (random generation)
+# - NPCs spawn when player loads the area (within render distance)
+# - Dangerous locations may result in NPC deaths from hostile mobs
+# - Check BepInEx log for: "[HumanManager] TrySeedVillage" to see actual spawns
