@@ -87,13 +87,10 @@ namespace OdinPlus
 		}
 		public string PrintData()
 		{
-			if (m_message == "")
-			{
-				return "";
-			}
-			//string n = "\n" + (isMain ? "$op_quest_main" : " $op_quest_side ");
-			//n += String.Format(" $op_quest_quest [<color=yellow><b>{0}</b></color>] : {1}", m_index, QuestName);
-			return m_message;
+			string label = String.Format("\n[<color=yellow><b>{0}</b></color>] {1} ({2})", m_index, QuestName ?? locName, m_type);
+			if (!string.IsNullOrEmpty(m_message))
+				label += " - " + m_message.Replace('\n', ' ');
+			return label;
 		}
 		public void ShowMessage(string result)
 		{

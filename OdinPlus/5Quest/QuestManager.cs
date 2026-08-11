@@ -72,7 +72,14 @@ namespace OdinPlus
 		public void RPC_CreateQuestSucced(long sender, string id, Vector3 pos)
 		{
 			CancelWaitError();
+			CancelInvoke(nameof(ClearStaleWait));
+			if (WaitQuest == null)
+			{
+				DBG.blogWarning("[QuestManager] RPC_CreateQuestSucced but WaitQuest is null (stale response)");
+				return;
+			}
 			var quest = WaitQuest;
+			WaitQuest = null;
 			quest.ID = id;
 			quest.m_realPostion = pos;
 			questProcesser.Begin();
@@ -81,8 +88,10 @@ namespace OdinPlus
 		public void RPC_CreateQuestFailed(long sender)
 		{
 			CancelWaitError();
-			DBG.InfoCT("Try Agian,the dice is broken");
-			DBG.blogError(string.Format("Cannot Place Quest :  {0}", WaitQuest.locName, WaitQuest.m_type));
+			CancelInvoke(nameof(ClearStaleWait));
+			DBG.InfoCT("Quest location not found - try again");
+			if (WaitQuest != null)
+				DBG.blogError($"Cannot Place Quest: {WaitQuest.locName} ({WaitQuest.m_type})");
 			WaitQuest = null;
 		}
 
@@ -137,7 +146,10 @@ namespace OdinPlus
 		}
 		public Quest CreateQuest(QuestType type)
 		{
-			return CreateQuest(type,Game.instance.GetPlayerProfile().GetCustomSpawnPoint());
+			Vector3 pos = Player.m_localPlayer != null
+				? Player.m_localPlayer.transform.position
+				: Game.instance.GetPlayerProfile().GetCustomSpawnPoint();
+			return CreateQuest(type, pos);
 		}
 
 		public Quest CreateQuest(QuestType type, Vector3 pos)
@@ -146,17 +158,24 @@ namespace OdinPlus
 			{
 				MyQuests = new Dictionary<string, Quest>();
 			}
-			//upd multiple overloads
 			WaitQuest = new Quest();
 			WaitQuest.m_type = type;
 			GameKey = CheckKey();
 			WaitQuest.Key = GameKey;
 			WaitQuest.m_realPostion = pos;
-			//upd ismain?
-			//hack LEVEL
-			questProcesser=QuestProcesser.Create(WaitQuest);
+			questProcesser = QuestProcesser.Create(WaitQuest);
 			questProcesser.Init();
+			Invoke(nameof(ClearStaleWait), 15f);
 			return WaitQuest;
+		}
+
+		private void ClearStaleWait()
+		{
+			if (WaitQuest != null)
+			{
+				DBG.blogWarning("[QuestManager] Server never responded, clearing stale WaitQuest");
+				WaitQuest = null;
+			}
 		}
 		public bool GiveUpQuest(int ind)
 		{
@@ -242,12 +261,7 @@ namespace OdinPlus
 		#region SaveLoad
 		public void Save()
 		{
-			var data = OdinData.Data.Quests;
-			data = new List<Quest>();
-			foreach (var quest in MyQuests.Values)
-			{
-				data.Add(quest);
-			}
+			OdinData.Data.Quests = new List<Quest>(MyQuests.Values);
 		}
 		public void Load()
 		{
