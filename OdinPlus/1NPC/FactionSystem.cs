@@ -31,10 +31,62 @@ namespace OdinPlus
 		public List<string> AssignedBlueprints { get; set; } = new List<string>();
 	}
 
+	public class GeneralSettings
+	{
+		public string SecondInteractKey { get; set; } = "E";
+		public string SecondInteractModifier { get; set; } = "LeftAlt";
+		public string FactionGuiKey { get; set; } = "F7";
+		public bool ForceOdinPosition { get; set; } = false;
+		public float OdinPositionX { get; set; } = 0f;
+		public float OdinPositionY { get; set; } = 0f;
+		public float OdinPositionZ { get; set; } = 0f;
+	}
+
+	public class EconomySettings
+	{
+		public int SkillRaiseCost { get; set; } = 10;
+		public int SkillRaiseFactor { get; set; } = 100;
+		public int PriestTrainCost { get; set; } = 100;
+		public float PriestTrainAmount { get; set; } = 5f;
+		public Dictionary<string, int> ItemValues { get; set; } = new Dictionary<string, int>
+		{
+			["TrophyBlob"] = 20, ["TrophyBoar"] = 5, ["TrophyBonemass"] = 50,
+			["TrophyDeathsquito"] = 20, ["TrophyDeer"] = 5, ["TrophyDragonQueen"] = 50,
+			["TrophyDraugr"] = 20, ["TrophyDraugrElite"] = 30, ["TrophyDraugrFem"] = 20,
+			["TrophyEikthyr"] = 50, ["TrophyFenring"] = 30, ["TrophyForestTroll"] = 30,
+			["TrophyFrostTroll"] = 20, ["TrophyGoblin"] = 20, ["TrophyGoblinBrute"] = 30,
+			["TrophyGoblinKing"] = 50, ["TrophyGoblinShaman"] = 20, ["TrophyGreydwarf"] = 5,
+			["TrophyGreydwarfBrute"] = 15, ["TrophyGreydwarfShaman"] = 15,
+			["TrophyHatchling"] = 20, ["TrophyLeech"] = 15, ["TrophyLox"] = 20,
+			["TrophyNeck"] = 5, ["TrophySerpent"] = 30, ["TrophySGolem"] = 30,
+			["TrophySkeleton"] = 10, ["TrophySkeletonPoison"] = 30, ["TrophySurtling"] = 20,
+			["TrophyTheElder"] = 50, ["TrophyWolf"] = 20, ["TrophyWraith"] = 30,
+			["AncientSeed"] = 5, ["BoneFragments"] = 1, ["Chitin"] = 5,
+			["WitheredBone"] = 10, ["DragonEgg"] = 40, ["GoblinTotem"] = 20, ["OdinLegacy"] = 20
+		};
+	}
+
+	public class NpcSettings
+	{
+		public float GuardPatrolRadius { get; set; } = 20f;
+		public float GuardAlertRange { get; set; } = 20f;
+		public float VillagerPatrolRadius { get; set; } = 5f;
+		public float BuilderPatrolRadius { get; set; } = 8f;
+		public float PriestPatrolRadius { get; set; } = 3f;
+		public float MessengerPatrolRadius { get; set; } = 5f;
+		public int GuardsPerVillage { get; set; } = 3;
+		public int GuardsPerCamp { get; set; } = 1;
+		public float SpawnChance { get; set; } = 0.4f;
+	}
+
 	public class FactionConfig
 	{
+		public GeneralSettings General { get; set; } = new GeneralSettings();
+		public EconomySettings Economy { get; set; } = new EconomySettings();
 		public Dictionary<string, FactionDef> Factions { get; set; } = new Dictionary<string, FactionDef>();
 		public ReputationEvents ReputationEvents { get; set; } = new ReputationEvents();
+		public NpcSettings NpcSettings { get; set; } = new NpcSettings();
+		public List<string> VillageLocations { get; set; } = new List<string>();
 	}
 
 	public class ReputationEvents
@@ -49,6 +101,53 @@ namespace OdinPlus
 	{
 		public static Dictionary<string, FactionDef> Factions = new Dictionary<string, FactionDef>();
 		public static ReputationEvents EventValues = new ReputationEvents();
+		public static GeneralSettings General = new GeneralSettings();
+		public static EconomySettings Economy = new EconomySettings();
+		public static NpcSettings NpcConfig = new NpcSettings();
+		public static List<string> VillageLocations = new List<string>
+		{
+			// Meadows — houses, farms, ruins, runestones
+			"WoodFarm1", "WoodVillage1",
+			"WoodHouse1", "WoodHouse2", "WoodHouse3", "WoodHouse4", "WoodHouse5",
+			"WoodHouse6", "WoodHouse7", "WoodHouse8", "WoodHouse9",
+			"WoodHouse10", "WoodHouse11", "WoodHouse12", "WoodHouse13",
+			"Runestone_Meadows", "Runestone_Boars",
+			"Dolmen01", "Dolmen02", "Dolmen03",
+			"ShipSetting01", "CombatRuin01",
+			// Black Forest — camps, ruins, crypts, towers, runestones
+			"Greydwarf_camp1", "Ruin1", "Ruin2",
+			"Crypt2", "Crypt3", "Crypt4",
+			"Runestone_BlackForest", "Runestone_Greydwarfs",
+			"StoneTowerRuins03", "StoneTowerRuins07", "StoneTowerRuins08",
+			"StoneTowerRuins09", "StoneTowerRuins10",
+			// Swamp — huts, ruins, runestones
+			"SwampHut1", "SwampHut2", "SwampHut3", "SwampHut4", "SwampHut5",
+			"SwampRuin1", "SwampRuin2",
+			"Runestone_Swamps", "Runestone_Draugr",
+			// Mountains — cabins, graves, waymarkers, runestones
+			"AbandonedLogCabin02", "AbandonedLogCabin03", "AbandonedLogCabin04",
+			"MountainGrave01", "Waymarker01", "Waymarker02",
+			"Runestone_Mountains", "DrakeLorestone",
+			"StoneTowerRuins04", "StoneTowerRuins05",
+			// Plains — camps, henges, towers, runestones
+			"GoblinCamp2", "StoneHenge1", "StoneHenge2", "StoneHenge3",
+			"StoneHenge4", "StoneHenge5", "StoneHenge6",
+			"StoneTower1", "StoneTower3", "Ruin3",
+			"Runestone_Plains",
+			// Mistlands — harbours, towers, viaducts, runestones
+			"Mistlands_Harbour1", "Mistlands_DvergrTownEntrance1", "Mistlands_DvergrTownEntrance2",
+			"Mistlands_GuardTower1_new", "Mistlands_GuardTower2_new", "Mistlands_GuardTower3_new",
+			"Mistlands_Lighthouse1_new",
+			"Mistlands_Viaduct1", "Mistlands_Viaduct2",
+			"Mistlands_Statue1", "Mistlands_Statue2",
+			"Runestone_Mistlands",
+			// Ashlands — fortresses, ruins, runestones
+			"CharredFortress", "AshlandRuins", "FortressRuins",
+			"CharredRuins1", "CharredRuins2", "CharredRuins3", "CharredRuins4",
+			"CharredTowerRuins1", "CharredTowerRuins2", "CharredTowerRuins3",
+			"PlaceofMystery1", "PlaceofMystery2", "PlaceofMystery3",
+			"Runestone_Ashlands",
+		};
 
 		// Per-player reputation: [factionName][playerZDOID] = score
 		private static Dictionary<string, Dictionary<string, int>> _reputation = new Dictionary<string, Dictionary<string, int>>();
@@ -76,6 +175,7 @@ namespace OdinPlus
 		public static void BroadcastSync()
 		{
 			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
+			if (!Plugin.CFG_ServerEnforced.Value) return;
 			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "FactionConfigSync", _cachedYaml);
 		}
 
@@ -88,6 +188,7 @@ namespace OdinPlus
 		private static void RPC_RequestFactionSync(long sender)
 		{
 			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
+			if (!Plugin.CFG_ServerEnforced.Value) return;
 			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "FactionConfigSync", _cachedYaml);
 		}
 
@@ -113,11 +214,10 @@ namespace OdinPlus
 				_cachedYaml = yaml;
 				ParseYaml(yaml);
 
-				// Server syncs to clients via RPC
-				if (ZNet.instance != null && ZNet.instance.IsServer())
+				if (ZNet.instance != null && ZNet.instance.IsServer() && Plugin.CFG_ServerEnforced.Value)
 				{
 					ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "FactionConfigSync", yaml);
-					Plugin.logger.LogInfo($"[FactionManager] Server syncing config to clients");
+					Plugin.logger.LogInfo($"[FactionManager] Server syncing config to clients (ServerEnforced=true)");
 				}
 			}
 			catch (Exception ex)
@@ -139,8 +239,20 @@ namespace OdinPlus
 				if (config?.Factions == null) return;
 				Factions = config.Factions;
 				EventValues = config.ReputationEvents;
+				if (config.General != null)
+					General = config.General;
+				if (config.Economy != null)
+					Economy = config.Economy;
+				if (config.NpcSettings != null)
+					NpcConfig = config.NpcSettings;
+				if (config.VillageLocations != null && config.VillageLocations.Count > 0)
+					VillageLocations = config.VillageLocations;
 
-				Plugin.logger.LogInfo($"[FactionManager] Loaded {Factions.Count} factions");
+				Plugin.logger.LogInfo($"[FactionManager] Loaded {Factions.Count} factions, {VillageLocations.Count} village locations");
+
+				// Re-add Villagers faction with blueprint assignments if blueprints are loaded
+				if (Blueprints.All.Count > 0)
+					BlueprintConfig.EnsureVillagersAssignment();
 			}
 			catch (Exception e)
 			{
@@ -252,6 +364,44 @@ namespace OdinPlus
 				["GreenTeam"] = new FactionDef { Name = "GreenTeam" }
 			};
 			EventValues = new ReputationEvents();
+			NpcConfig = new NpcSettings();
+			VillageLocations = new List<string>
+			{
+				"WoodFarm1", "WoodVillage1",
+				"WoodHouse1", "WoodHouse2", "WoodHouse3", "WoodHouse4", "WoodHouse5",
+				"WoodHouse6", "WoodHouse7", "WoodHouse8", "WoodHouse9",
+				"WoodHouse10", "WoodHouse11", "WoodHouse12", "WoodHouse13",
+				"Runestone_Meadows", "Runestone_Boars",
+				"Dolmen01", "Dolmen02", "Dolmen03",
+				"ShipSetting01", "CombatRuin01",
+				"Greydwarf_camp1", "Ruin1", "Ruin2",
+				"Crypt2", "Crypt3", "Crypt4",
+				"Runestone_BlackForest", "Runestone_Greydwarfs",
+				"StoneTowerRuins03", "StoneTowerRuins07", "StoneTowerRuins08",
+				"StoneTowerRuins09", "StoneTowerRuins10",
+				"SwampHut1", "SwampHut2", "SwampHut3", "SwampHut4", "SwampHut5",
+				"SwampRuin1", "SwampRuin2",
+				"Runestone_Swamps", "Runestone_Draugr",
+				"AbandonedLogCabin02", "AbandonedLogCabin03", "AbandonedLogCabin04",
+				"MountainGrave01", "Waymarker01", "Waymarker02",
+				"Runestone_Mountains", "DrakeLorestone",
+				"StoneTowerRuins04", "StoneTowerRuins05",
+				"GoblinCamp2", "StoneHenge1", "StoneHenge2", "StoneHenge3",
+				"StoneHenge4", "StoneHenge5", "StoneHenge6",
+				"StoneTower1", "StoneTower3", "Ruin3",
+				"Runestone_Plains",
+				"Mistlands_Harbour1", "Mistlands_DvergrTownEntrance1", "Mistlands_DvergrTownEntrance2",
+				"Mistlands_GuardTower1_new", "Mistlands_GuardTower2_new", "Mistlands_GuardTower3_new",
+				"Mistlands_Lighthouse1_new",
+				"Mistlands_Viaduct1", "Mistlands_Viaduct2",
+				"Mistlands_Statue1", "Mistlands_Statue2",
+				"Runestone_Mistlands",
+				"CharredFortress", "AshlandRuins", "FortressRuins",
+				"CharredRuins1", "CharredRuins2", "CharredRuins3", "CharredRuins4",
+				"CharredTowerRuins1", "CharredTowerRuins2", "CharredTowerRuins3",
+				"PlaceofMystery1", "PlaceofMystery2", "PlaceofMystery3",
+				"Runestone_Ashlands",
+			};
 		}
 
 		public static void Initialize(Dictionary<string, Dictionary<string, int>> savedRep)
