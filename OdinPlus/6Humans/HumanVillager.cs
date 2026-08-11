@@ -45,8 +45,27 @@ namespace OdinPlus
 		}
 		public bool IsQuestReady()
 		{
-			DateTime d = new DateTime(this.m_nview.GetZDO().GetLong("QuestTime", (long)QuestCD));
-			bool result = (ZNet.instance.GetTime() - d).TotalSeconds > (double)QuestCD;
+			if (m_nview == null || m_nview.GetZDO() == null)
+			{
+				DBG.blogWarning("[QuestVillager] IsQuestReady: ZNetView or ZDO is null");
+				return false;
+			}
+			long questTimeTicks = m_nview.GetZDO().GetLong("QuestTime", 0);
+			DBG.blogInfo($"[QuestVillager] IsQuestReady check: questTimeTicks={questTimeTicks}, QuestCD={QuestCD}");
+
+			if (questTimeTicks == 0)
+			{
+				DBG.blogInfo("[QuestVillager] First time quest - ready");
+				return true;
+			}
+
+			DateTime lastQuestTime = new DateTime(questTimeTicks);
+			DateTime currentTime = ZNet.instance.GetTime();
+			double secondsSince = (currentTime - lastQuestTime).TotalSeconds;
+			bool result = secondsSince > (double)QuestCD;
+
+			DBG.blogInfo($"[QuestVillager] Last quest: {lastQuestTime}, Now: {currentTime}, Seconds since: {secondsSince:F0}, Required: {QuestCD}, Ready: {result}");
+
 			if (EXCobj != null) EXCobj.SetActive(result);
 			return result;
 		}

@@ -1,4 +1,3 @@
-using System.Threading;
 using System;
 
 namespace OdinPlus
@@ -8,25 +7,21 @@ namespace OdinPlus
 		protected override void Awake()
 		{
 			base.Awake();
-			ChoiceList = new string[2] { "$op_talk", "$op_human_message_hand" };
+			m_name = "Worker";
+			ChoiceList = new string[1] { "$op_talk" };
 		}
 		public override void Choice0()
 		{
-			Say("you got something for me?");//trans
-		}
-		public void Choice1()
-		{
-			if (OdinData.GetKey(m_nview.GetZDO().GetString("npcname")))
+			string npcName = m_nview.GetZDO().GetString("npcname", "");
+			if (!string.IsNullOrEmpty(npcName) && OdinData.GetKey(npcName))
 			{
-				Say("Thx!");
-                OdinData.AddCredits(10,true);
-                return;
+				OdinData.RemoveKey(npcName);
+				HumanMessager.RemoveQuestPin(npcName);
+				OdinData.AddCredits(10, true);
+				Say("Thanks for the delivery!");
+				return;
 			}
-			else
-			{
-                Say("you got something for me?");
-                return;
-			}
+			Say("I'm just working here.");
 		}
 	}
 }
