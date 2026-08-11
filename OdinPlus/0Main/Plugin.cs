@@ -17,18 +17,38 @@ namespace OdinPlus
 	public class Plugin : BaseUnityPlugin
 	{
 		#region Config Var
-		public static ConfigEntry<int> nexusID;
 		public static ManualLogSource logger;
-		public static ConfigEntry<KeyboardShortcut> KS_SecondInteractkey;
-		public static ConfigEntry<string> CFG_ItemSellValue;
-		public static ConfigEntry<Vector3> CFG_OdinPosition;
-		public static ConfigEntry<bool> CFG_ForceOdinPosition;
-		public static bool Set_FOP = false;
-		#region InternalConfig
-		public static int RaiseCost = 10;
-		public static int RaiseFactor = 100;
+		public static ConfigEntry<bool> CFG_Enabled;
+		public static ConfigEntry<bool> CFG_ServerEnforced;
+		public static ConfigEntry<string> CFG_LogLevel;
 
-		#endregion InternalConfig
+		public static KeyboardShortcut SecondInteractKey
+		{
+			get
+			{
+				var g = FactionManager.General;
+				KeyCode main = KeyCode.E;
+				KeyCode mod = KeyCode.LeftAlt;
+				System.Enum.TryParse(g.SecondInteractKey, out main);
+				System.Enum.TryParse(g.SecondInteractModifier, out mod);
+				return new KeyboardShortcut(main, mod);
+			}
+		}
+
+		public static Vector3 OdinPosition
+		{
+			get
+			{
+				var g = FactionManager.General;
+				return new Vector3(g.OdinPositionX, g.OdinPositionY, g.OdinPositionZ);
+			}
+		}
+
+		public static bool ForceOdinPosition => FactionManager.General.ForceOdinPosition;
+		public static bool Set_FOP = false;
+		public static int RaiseCost => FactionManager.Economy.SkillRaiseCost;
+		public static int RaiseFactor => FactionManager.Economy.SkillRaiseFactor;
+
 		Harmony _harmony;
 		#endregion
 		public static GameObject OdinPlusRoot;
@@ -43,29 +63,30 @@ namespace OdinPlus
 		private void Awake()
 		{
 			Plugin.logger = base.Logger;
-			CFG_ItemSellValue = base.Config.Bind<string>("Config", "ItemSellValue", "TrophyBlob:20;TrophyBoar:5;TrophyBonemass:50;TrophyDeathsquito:20;TrophyDeer:5;TrophyDragonQueen:50;TrophyDraugr:20;TrophyDraugrElite:30;TrophyDraugrFem:20;TrophyEikthyr:50;TrophyFenring:30;TrophyForestTroll:30;TrophyFrostTroll:20;TrophyGoblin:20;TrophyGoblinBrute:30;TrophyGoblinKing:50;TrophyGoblinShaman:20;TrophyGreydwarf:5;TrophyGreydwarfBrute:15;TrophyGreydwarfShaman:15;TrophyHatchling:20;TrophyLeech:15;TrophyLox:20;TrophyNeck:5;TrophySerpent:30;TrophySGolem:30;TrophySkeleton:10;TrophySkeletonPoison:30;TrophySurtling:20;TrophyTheElder:50;TrophyWolf:20;TrophyWraith:30;AncientSeed:5;BoneFragments:1;Chitin:5;WitheredBone:10;DragonEgg:40;GoblinTotem:20;OdinLegacy:20");
-			Plugin.nexusID = base.Config.Bind<int>("General", "NexusID", 798, "Nexus mod ID for updates");
-			KS_SecondInteractkey = base.Config.Bind<KeyboardShortcut>("1Hotkeys", "Second Interact key", new KeyboardShortcut(KeyCode.E, KeyCode.LeftAlt));
-			CFG_OdinPosition = base.Config.Bind<Vector3>("2Server set only", "Odin position", Vector3.zero);
-			CFG_ForceOdinPosition = base.Config.Bind<bool>("2Server set only", "Force Odin Position", false);
+			CFG_Enabled = base.Config.Bind<bool>("General", "Enabled", true, "Enable or disable OdinPlus entirely");
+			CFG_ServerEnforced = base.Config.Bind<bool>("General", "ServerEnforced", true, "Server pushes its YAML config to all clients. When false, clients use their own local faction_config.yaml");
+			CFG_LogLevel = base.Config.Bind<string>("General", "LogLevel", "Info", "Log verbosity: None, Error, Warn, Info, Debug");
+			if (System.Enum.TryParse<LogLevel>(CFG_LogLevel.Value, true, out var lvl))
+				DBG.Level = lvl;
+
+			if (!CFG_Enabled.Value)
+			{
+				logger.LogInfo("OdinPlus is disabled via config");
+				return;
+			}
 
 			RegRPC = (Action)ReigsterRpc;
 
 			_harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), null);
 
-			// RegisterConsoleCommands() only writes to Terminal's static commands dict, safe to call before Terminal exists
 			RegisterConsoleCommands();
 
-			//-- init here
 			OdinPlusRoot = new GameObject("OdinPlus");
 			OdinPlusRoot.AddComponent<ResourceAssetManager>();
 			OdinPlusRoot.AddComponent<OdinPlus>();
 
-			//notice Debug
-			OdinPlusRoot.AddComponent<DevTool>();
-
 			DontDestroyOnLoad(OdinPlusRoot);
-			DBG.blogInfo("OdinPlus Loadded");
+			DBG.blogInfo("OdinPlus Loaded");
 		}
 
 		public static void ReigsterRpc()
@@ -158,23 +179,23 @@ namespace OdinPlus
 			private static void Postfix(Player __instance)
 			{
 				if (CheckPlayerNull()) return;
-
-				// Skip all OdinPlus interactions during blueprint selection
-				// (attacks are already blocked by not having weapons equipped in place mode)
 				if (BlueprintSelector.IsActive) return;
+				if (!SecondInteractKey.IsDown()) return;
 
-				if (KS_SecondInteractkey.Value.IsDown() && __instance.GetHoverObject() != null)
+				var hoverObj = __instance.GetHoverObject();
+				if (hoverObj == null) return;
+
+				// Try root GameObject first
+				if (hoverObj.TryGetComponent<OdinInteractable>(out var interactable))
 				{
-					if (__instance.GetHoverObject().GetComponent<OdinInteractable>() != null)
-					{
-						__instance.GetHoverObject().GetComponent<OdinInteractable>().SecondaryInteract(__instance);
-						return;
-					}
-					if (__instance.GetHoverObject().GetComponentInParent<OdinInteractable>() != null)
-					{
-						__instance.GetHoverObject().GetComponentInParent<OdinInteractable>().SecondaryInteract(__instance);
-						return;
-					}
+					interactable.SecondaryInteract(__instance);
+					return;
+				}
+				// If hover object is a child (collider), search up the hierarchy
+				interactable = hoverObj.GetComponentInParent<OdinInteractable>();
+				if (interactable != null)
+				{
+					interactable.SecondaryInteract(__instance);
 				}
 			}
 		}
@@ -229,16 +250,25 @@ namespace OdinPlus
 			new Terminal.ConsoleCommand("setodin", "Save current Odin position to config", delegate(Terminal.ConsoleEventArgs args)
 			{
 				if (!OdinPlus.isNPCInit) return;
-				CFG_OdinPosition.Value = NpcManager.Root.transform.localPosition;
-				args.Context.AddString("Odin position saved");
+				var pos = NpcManager.Root.transform.localPosition;
+				FactionManager.General.OdinPositionX = pos.x;
+				FactionManager.General.OdinPositionY = pos.y;
+				FactionManager.General.OdinPositionZ = pos.z;
+				args.Context.AddString("Odin position saved (update faction_config.yaml to persist)");
 			});
 
-			new Terminal.ConsoleCommand("findfarm", "Reveal nearest WoodFarm1 location on map", delegate(Terminal.ConsoleEventArgs args)
+			new Terminal.ConsoleCommand("findfarm", "[locationName] - Reveal all instances of a location on map (admin only)", delegate(Terminal.ConsoleEventArgs args)
 			{
 				if (Player.m_localPlayer == null) return;
-				Game.instance.DiscoverClosestLocation("WoodFarm1", Player.m_localPlayer.transform.position, "Village", 0);
-				args.Context.AddString("Searching for nearest farm...");
-			});
+				if (!ZNet.instance.IsServer() && !ZNet.instance.IsLocalInstance())
+				{
+					args.Context.AddString("Admin only");
+					return;
+				}
+				string locName = args.Length >= 2 ? args[1] : "WoodFarm1";
+				int count = LocationManager.RevealAllLocations(locName);
+				args.Context.AddString($"Revealed {count} '{locName}' locations on map");
+			}, isCheat: true);
 
 			new Terminal.ConsoleCommand("scanblueprint", "[name] [radius] - Scan built structures as blueprint", delegate(Terminal.ConsoleEventArgs args)
 			{
@@ -341,12 +371,18 @@ namespace OdinPlus
 		[HarmonyPatch(typeof(Tameable), "GetHoverText")]
 		private static class Postfix_Tameable_GetHoverText
 		{
+			private static string _cachedWolfHoverText;
 			private static void Postfix(Tameable __instance, ref string __result)
 			{
-				if (__instance.gameObject.GetComponent<Character>().m_name == "$op_wolf_name")
+				if (!__instance.TryGetComponent<Character>(out var character)) return;
+				if (character.m_name != "$op_wolf_name") return;
+
+				if (_cachedWolfHoverText == null)
 				{
-					__result += Localization.instance.Localize(String.Format("\n<color=yellow><b>[{0}]</b></color>$op_wolf_use", Plugin.KS_SecondInteractkey.Value.MainKey.ToString()));
+					_cachedWolfHoverText = Localization.instance.Localize(
+						$"\n<color=yellow><b>[{SecondInteractKey.MainKey}]</b></color>$op_wolf_use");
 				}
+				__result += _cachedWolfHoverText;
 			}
 		}
 
@@ -530,6 +566,45 @@ namespace OdinPlus
 		}
 
 		#endregion znet
+		#region CreatureSpawner
+		[HarmonyPatch(typeof(CreatureSpawner), "Spawn")]
+		private static class Postfix_CreatureSpawner_Spawn
+		{
+			private static void Postfix(CreatureSpawner __instance)
+			{
+				var spawnerZnv = __instance.GetComponent<ZNetView>();
+				if (spawnerZnv == null || spawnerZnv.GetZDO() == null) return;
+				string faction = spawnerZnv.GetZDO().GetString("npc_faction", "");
+				if (string.IsNullOrEmpty(faction)) return;
+
+				float patrol = spawnerZnv.GetZDO().GetFloat("npc_patrol_radius", 0f);
+				// Find the spawned creature (child or nearby with our NPC component)
+				var npc = __instance.GetComponentInChildren<HumanNPC>(true);
+				if (npc == null)
+				{
+					// CreatureSpawner spawns at its own position — search nearby
+					var cols = Physics.OverlapSphere(__instance.transform.position, 2f);
+					foreach (var col in cols)
+					{
+						npc = col.GetComponentInParent<HumanNPC>();
+						if (npc != null) break;
+					}
+				}
+				if (npc == null) return;
+
+				npc.FactionName = faction;
+				var npcZnv = npc.GetComponent<ZNetView>();
+				if (npcZnv != null && npcZnv.GetZDO() != null)
+					npcZnv.GetZDO().Set("npc_faction", faction);
+
+				if (patrol > 0f)
+				{
+					var ai = npc.GetComponent<MonsterAI>();
+					if (ai != null) ai.m_randomMoveRange = patrol;
+				}
+			}
+		}
+		#endregion CreatureSpawner
 		#region container
 		[HarmonyPatch(typeof(Container), "Interact")]
 		private static class Postfix_Container_Interact
@@ -550,10 +625,9 @@ namespace OdinPlus
 		{
 			private static bool Prefix(Character __instance, ref string __result)
 			{
-				Component comp = __instance.GetComponent<HumanNPC>();
-				if (comp)
+				if (__instance.TryGetComponent<HumanNPC>(out var npc))
 				{
-					__result = ((HumanNPC)comp).GetHoverText();
+					__result = npc.GetHoverText();
 					return false;
 				}
 				return true;
