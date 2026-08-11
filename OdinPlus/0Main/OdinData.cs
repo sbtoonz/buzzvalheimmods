@@ -72,24 +72,9 @@ namespace OdinPlus
 			}
 			Data = new DataTable();
 			Data.Quests = new List<Quest>();
-			if (Plugin.CFG_ItemSellValue.Value == "") { return; }
-			string[] l1 = Plugin.CFG_ItemSellValue.Value.Split(new char[] { ';' });
-			for (int i = 0; i < l1.Length; i++)
+			foreach (var kvp in FactionManager.Economy.ItemValues)
 			{
-				string[] c = l1[i].Split(new char[] { ':' });
-				if (c.Length == 0)
-				{
-					continue;
-				}
-				try
-				{
-					ItemSellValue.Add(c[0], int.Parse(c[1]));
-				}
-				catch (Exception e)
-				{
-					DBG.blogWarning("CFG Error,Check Your ItemSellValue");
-					DBG.blogWarning(e);
-				}
+				ItemSellValue[kvp.Key] = kvp.Value;
 			}
 		}
 		#endregion Mono

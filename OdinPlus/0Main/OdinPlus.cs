@@ -139,14 +139,13 @@ namespace OdinPlus
 			// other prior interaction.
 			FactionGui.Init();
 
-			// Gameplay YAML - server-authoritative. Load the local file first (works standalone and as a
-			// fallback), then either broadcast (server, covers the common "server boots before players
-			// join" case) or request the server's copy (client, covers a player joining an already-running
-			// server). None of blueprints/faction config/faction quests were actually loaded or synced
-			// before this pass despite the sync-capable code existing.
-			BlueprintConfig.LoadFromFile();
+			// Factions must load BEFORE blueprints — BlueprintConfig.SyncVillagersAssignment()
+			// adds "Villagers" to the Factions dict, but FactionManager.LoadConfig replaces the
+			// entire dict from YAML. Loading factions first ensures the dict exists before blueprints
+			// append to it.
 			FactionManager.LoadConfig(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_config.yaml"));
 			FactionQuestManager.LoadQuests(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_quests.yaml"));
+			BlueprintConfig.LoadFromFile();
 
 			if (ZNet.instance.IsServer())
 			{
