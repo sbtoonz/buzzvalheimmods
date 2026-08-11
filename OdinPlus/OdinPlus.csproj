@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>c:\game\steamapps\common\Valheim\BepInEx\scripts\</OutputPath>
+    <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -26,7 +26,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>c:\game\steamapps\common\Valheim\BepInEx\plugins\</OutputPath>
+    <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -35,7 +35,7 @@
   <ItemGroup>
     <Reference Include="YamlDotNet">
       <HintPath>..\0libDep\YamlDotNet.dll</HintPath>
-      <Private>False</Private>
+      <Private>True</Private>
     </Reference>
     <Reference Include="0Harmony">
       <HintPath>..\0libDep\0Harmony.dll</HintPath>
@@ -389,6 +389,7 @@
     <EmbeddedResource Include="Resources\blueprintui" />
     <Compile Include="6Humans\HumanManager.cs" />
     <Compile Include="6Humans\BuilderNPC.cs" />
+    <Compile Include="6Humans\BuildSiteManager.cs" />
     <Compile Include="6Humans\BlueprintGhost.cs" />
     <Compile Include="6Humans\BlueprintBrowser.cs" />
     <Compile Include="6Humans\BlueprintBrowserAssets.cs" />
@@ -417,14 +418,10 @@
     <Compile Include="6Humans\HumanFighter.cs" />
     <Compile Include="6Humans\MaterialVillager.cs" />
     <Compile Include="6Humans\HumanWorker.cs" />
+    <Compile Include="6Humans\VillagePriest.cs" />
+    <Compile Include="6Humans\GuardNPC.cs" />
     <Compile Include="6Humans\QuestVillager.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+  <Import Project="ILRepack.targets" />
 </Project>

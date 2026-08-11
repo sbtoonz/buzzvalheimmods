@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+  <Target Name="ILRepack" AfterTargets="Build">
     <PropertyGroup>
-      <WorkingDirectory>$(MSBuildThisFileDirectory)</WorkingDirectory>
-      <ILRepack>$(WorkingDirectory)..\ILRepack.exe</ILRepack>
-      <InputAssemblies>$(OutputPath)$(TargetFileName)</InputAssemblies>
-      <OutputAssembly>$(OutputPath)$(TargetFileName)</OutputAssembly>
+      <ILRepackExe>$(MSBuildThisFileDirectory)..\ILRepack.exe</ILRepackExe>
+      <LibDir>$(MSBuildThisFileDirectory)..\0libDep</LibDir>
+      <MergedOutput>$(MSBuildThisFileDirectory)bin\$(Configuration)\$(AssemblyName).merged.dll</MergedOutput>
+      <MainDll>$(MSBuildThisFileDirectory)bin\$(Configuration)\$(AssemblyName).dll</MainDll>
+      <YamlDll>$(MSBuildThisFileDirectory)bin\$(Configuration)\YamlDotNet.dll</YamlDll>
+      <DeployTarget>C:\Program Files (x86)\Steam\steamapps\common\Valheim\BepInEx\plugins\OdinPlus.dll</DeployTarget>
     </PropertyGroup>
-    <ItemGroup>
-      <InputAssemblies Include="$(OutputPath)YamlDotNet.dll" />
-    </ItemGroup>
-    <Message Text="Merging assemblies with ILRepack..." Importance="High" />
-    <Exec Command="$(ILRepack) /internalize /out:$(OutputAssembly) $(InputAssemblies) @(InputAssemblies, ' ')" WorkingDirectory="$(WorkingDirectory)" />
-    <Message Text="ILRepack completed." Importance="High" />
+    <Message Text="ILRepack: merging YamlDotNet into $(AssemblyName).merged.dll ..." Importance="High" />
+    <Exec Command="&quot;$(ILRepackExe)&quot; --internalize --lib:&quot;$(LibDir)&quot; --out:&quot;$(MergedOutput)&quot; &quot;$(MainDll)&quot; &quot;$(YamlDll)&quot;" />
+    <Message Text="ILRepack: done. Deploying to BepInEx plugins..." Importance="High" />
+    <Copy SourceFiles="$(MergedOutput)" DestinationFiles="$(DeployTarget)" ContinueOnError="true" />
   </Target>
 </Project>
