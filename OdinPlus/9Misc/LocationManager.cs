@@ -9,6 +9,8 @@ namespace OdinPlus
 	internal class LocationManager : MonoBehaviour
 	{
 		private static Dictionary<Vector2i, ZoneSystem.LocationInstance> m_locationInstances = new Dictionary<Vector2i, ZoneSystem.LocationInstance>();
+		private static readonly AccessTools.FieldRef<ZoneSystem, Dictionary<Vector2i, ZoneSystem.LocationInstance>> s_locationInstancesRef =
+			AccessTools.FieldRefAccess<ZoneSystem, Dictionary<Vector2i, ZoneSystem.LocationInstance>>("m_locationInstances");
 		public static List<string> BlackList = new List<string>();
 		public static LocationManager instance;
 		public static bool rpc = false;
@@ -24,7 +26,7 @@ namespace OdinPlus
 		{
 			if (ZNet.instance.IsServer())
 			{
-				if (Plugin.CFG_OdinPosition.Value == Vector3.zero)
+				if (Plugin.OdinPosition == Vector3.zero)
 				{
 					ZoneSystem.LocationInstance temp;
 					ZoneSystem.instance.FindClosestLocation("StartTemple", Vector3.zero, out temp);
@@ -36,7 +38,7 @@ namespace OdinPlus
 				}
 				else
 				{
-					OdinPostion = Plugin.CFG_OdinPosition.Value;
+					OdinPostion = Plugin.OdinPosition;
 				}
 				BlackList = OdinData.Data.BlackList;
 				GetValDictionary();
@@ -45,7 +47,8 @@ namespace OdinPlus
 		}
 		public static void GetValDictionary()
 		{
-			var a = Traverse.Create(ZoneSystem.instance).Field<Dictionary<Vector2i, ZoneSystem.LocationInstance>>("m_locationInstances").Value;
+			var a = s_locationInstancesRef(ZoneSystem.instance);
+			if (a == null) return;
 			foreach (var item in a)
 			{
 				m_locationInstances.Add(item.Key, item.Value);
@@ -66,14 +69,32 @@ namespace OdinPlus
 		}
 		#endregion Init
 
+		public static int RevealAllLocations(string locationName)
+		{
+			int count = 0;
+			foreach (var item in m_locationInstances)
+			{
+				if (item.Value.m_location.m_prefabName == locationName)
+				{
+					Minimap.instance.DiscoverLocation(item.Value.m_position, Minimap.PinType.Icon3, locationName, false);
+					count++;
+				}
+			}
+			return count;
+		}
+
 		#region Feature
 		public static bool GetLocationInstance(string id, out ZoneSystem.LocationInstance li)
 		{
-			var a = Traverse.Create(ZoneSystem.instance).Field<Dictionary<Vector2i, ZoneSystem.LocationInstance>>("m_locationInstances").Value;
-			var key = Tweakers.Pak(id);
-			if (a.ContainsKey(key))
+			var a = s_locationInstancesRef(ZoneSystem.instance);
+			if (a == null)
 			{
-				li = a[key];
+				li = default(ZoneSystem.LocationInstance);
+				return false;
+			}
+			var key = Tweakers.Pak(id);
+			if (a.TryGetValue(key, out li))
+			{
 				return true;
 			}
 			li = default(ZoneSystem.LocationInstance);
@@ -190,9 +211,9 @@ namespace OdinPlus
 		{
 			if (!ZNet.instance.IsServer()) return;
 			DBG.blogWarning("Server got odin postion request");
-			if (Plugin.CFG_OdinPosition.Value != Vector3.zero)
+			if (Plugin.OdinPosition != Vector3.zero)
 			{
-				OdinPostion = Plugin.CFG_OdinPosition.Value;
+				OdinPostion = Plugin.OdinPosition;
 			}
 			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "RPC_SetStartPos", new object[] { OdinPostion });
 		}
@@ -208,8 +229,8 @@ namespace OdinPlus
 		public static void RPC_SendServerFOP(long sender)
 		{
 			if (!ZNet.instance.IsServer()) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "RPC_ReceiveServerFOP", new object[] { Plugin.CFG_ForceOdinPosition.Value });
-			DBG.blogWarning("Server Sent FOP:" + Plugin.CFG_ForceOdinPosition.Value);
+			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "RPC_ReceiveServerFOP", new object[] { Plugin.ForceOdinPosition });
+			DBG.blogWarning("Server Sent FOP:" + Plugin.ForceOdinPosition);
 		}
 		public static void RPC_ReceiveServerFOP(long sender, bool result)
 		{
