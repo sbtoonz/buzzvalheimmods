@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 namespace OdinPlus
 {
@@ -126,7 +127,12 @@ namespace OdinPlus
 			n += string.Format("\n$op_munin_questnum_b <color=lightblue><b>{0}</b></color> $op_munin_questnum_a", QuestManager.instance.Count());
 			n += "\n[<color=yellow><b>1-8</b></color>]$op_offer";
 			n += "\n[<color=yellow><b>$KEY_Use</b></color>]" + currentChoice;
-			n += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", Plugin.KS_SecondInteractkey.Value.MainKey.ToString());
+			// Show full keybind (Alt+E, not just E)
+			var modifiers = Plugin.SecondInteractKey.Modifiers;
+			string keyText = modifiers.Any()
+				? string.Join("+", modifiers) + "+" + Plugin.SecondInteractKey.MainKey
+				: Plugin.SecondInteractKey.MainKey.ToString();
+			n += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", keyText);
 			return Localization.instance.Localize(n);
 		}
 		public override string GetHoverName()

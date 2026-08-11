@@ -42,6 +42,12 @@ namespace OdinPlus
 			m_vis = GetComponent<VisEquipment>();
 			//RemoveUnusedComp();
 			currentChoice = ChoiceList[index];
+			if (m_nview != null && m_nview.GetZDO() != null)
+			{
+				string zdoFaction = m_nview.GetZDO().GetString("npc_faction", "");
+				if (!string.IsNullOrEmpty(zdoFaction))
+					FactionName = zdoFaction;
+			}
 			PerformanceManager.Instance.RegisterNPC(this);
 		}
 
@@ -107,7 +113,7 @@ namespace OdinPlus
 			string n = string.Format("<color=lightblue><b>{0}</b></color>", m_name);
 			n += "\n[<color=yellow><b>$KEY_Use</b></color>]" + currentChoice;
 			n += "\n[<color=yellow><b>1-8</b></color>]$op_offer";
-			n += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", Plugin.KS_SecondInteractkey.Value.MainKey.ToString());
+			n += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", Plugin.SecondInteractKey.MainKey.ToString());
 			return Localization.instance.Localize(n);
 		}
 		public override string GetHoverName()

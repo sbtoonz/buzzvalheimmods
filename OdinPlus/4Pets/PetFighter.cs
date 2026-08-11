@@ -44,7 +44,7 @@ namespace OdinPlus
 
 		void Update()
 		{
-			if (!Plugin.KS_SecondInteractkey.Value.IsDown()) return;
+			if (!Plugin.SecondInteractKey.IsDown()) return;
 			ForceAttack();
 		}
 

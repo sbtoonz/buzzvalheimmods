@@ -8,30 +8,22 @@ namespace OdinPlus
 		protected override void Awake()
 		{
 			base.Awake();
-			ChoiceList = new string[2] { "$op_talk", "Train Skills" };
+			m_name = "$op_priest_name";
+			ChoiceList = new string[2] { "$op_talk", "$op_priest_train" };
 		}
 
 		public override void Choice0()
 		{
-			Say("Greetings, traveler. I am the village priest. I can help you improve your skills... for a price.");
+			Say("$op_priest_greet");
 		}
 
 		public void Choice1()
 		{
-			Say("Press [1-8] to train a skill:\n" +
-				"[1] Swords (100 gold)\n" +
-				"[2] Axes (100 gold)\n" +
-				"[3] Bows (100 gold)\n" +
-				"[4] Blocking (100 gold)\n" +
-				"[5] Running (100 gold)\n" +
-				"[6] Jumping (100 gold)\n" +
-				"[7] Sneak (100 gold)\n" +
-				"[8] Swimming (100 gold)");
+			Say("$op_priest_skills");
 		}
 
 		public override bool UseItem(Humanoid user, ItemDrop.ItemData item)
 		{
-			// Accept gold coins for skill training
 			if (item.m_shared.m_name == "$item_coins")
 			{
 				var player = user as Player;
@@ -40,12 +32,12 @@ namespace OdinPlus
 				int cost = 100;
 				if (player.GetInventory().CountItems("$item_coins") >= cost)
 				{
-					Say("Give me the gold, then press a number [1-8] to choose your skill!");
-					return false; // Don't consume yet - wait for skill choice
+					Say("$op_priest_ready");
+					return false;
 				}
 				else
 				{
-					Say($"Training costs {cost} gold coins. You don't have enough!");
+					Say("$op_priest_notenough");
 					return true;
 				}
 			}
@@ -55,14 +47,13 @@ namespace OdinPlus
 
 		public override void SecondaryInteract(Humanoid user)
 		{
-			// Handle skill selection via number keys
 			var player = user as Player;
 			if (player == null) return;
 
 			int cost = 100;
 			if (player.GetInventory().CountItems("$item_coins") < cost)
 			{
-				Say($"You need {cost} gold coins for training!");
+				Say("$op_priest_notenough");
 				return;
 			}
 
@@ -86,7 +77,7 @@ namespace OdinPlus
 				// Raise skill
 				player.GetSkills().CheatRaiseSkill(skillToRaise.ToString(), raiseAmount);
 
-				Say($"Your {skillToRaise} skill has improved! (+{raiseAmount})");
+				Say("$op_priest_success");
 
 				// Reputation bonus
 				string playerID = player.GetZDOID().ToString();
@@ -105,11 +96,11 @@ namespace OdinPlus
 		{
 			if (m_hum.m_faction != Character.Faction.Players) return "";
 
-			string text = $"<color=#ADD8E6FF>{m_name} (Priest)</color>\n";
-			text += $"<color=white>Skill Training: 100 gold per skill</color>\n";
-			text += "[<color=yellow><b>$KEY_Use</b></color>] Talk\n";
-			text += $"[<color=yellow><b>{Plugin.KS_SecondInteractkey.Value.MainKey}</b></color>] Train Skills";
-			return text;
+			string n = string.Format("<color=lightblue><b>{0}</b></color>", Localization.instance.Localize(m_name));
+			n += "\n<color=white>$op_priest_cost</color>";
+			n += "\n[<color=yellow><b>$KEY_Use</b></color>] $op_talk";
+			n += String.Format("\n[<color=yellow><b>{0}</b></color>] $op_priest_train", Plugin.SecondInteractKey.MainKey);
+			return Localization.instance.Localize(n);
 		}
 	}
 }

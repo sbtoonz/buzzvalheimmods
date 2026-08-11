@@ -121,7 +121,7 @@ namespace OdinPlus
 			string s = string.Format("\n<color=lightblue><b>$op_crd:{0}</b></color>", OdinData.Credits);
 			string a = string.Format("\n[<color=yellow><b>$KEY_Use</b></color>] $op_use[<color=green><b>{0}</b></color>]", cskill);
 			string b = "\n[<color=yellow><b>1-8</b></color>]$op_offer";
-			b += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", Plugin.KS_SecondInteractkey.Value.MainKey.ToString());
+			b += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", Plugin.SecondInteractKey.MainKey.ToString());
 			return Localization.instance.Localize(n + s + a + b);
 		}
 		public override bool UseItem(Humanoid user, ItemDrop.ItemData item)//trans
