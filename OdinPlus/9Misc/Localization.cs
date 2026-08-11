@@ -17,6 +17,7 @@ namespace OdinPlus
 		private static bool _yamlExported = false;
 		private static Dictionary<string, string> english = new Dictionary<string, string>() {
 //NPC
+{"op_talk","Talk"},
 {"op_buy","Buy"},
 {"op_crd","Credits"},
 {"op_god","Odin"},
@@ -69,6 +70,35 @@ namespace OdinPlus
 {"op_fenringpet_name","Pet Fenring"},
 {"op_brutepet_name","Pet Brute"},
 {"op_wrong_num","Oops, wrong number"},
+//Priest
+{"op_priest_name","Priest"},
+{"op_priest_train","Train Skills"},
+{"op_priest_greet","Greetings, traveler. I can help you improve your skills... for a price."},
+{"op_priest_skills","[1] Swords [2] Axes [3] Bows [4] Blocking\n[5] Running [6] Jumping [7] Sneak [8] Swimming\nCost: 100 gold each"},
+{"op_priest_ready","Give me the gold, then press a number [1-8] to choose your skill!"},
+{"op_priest_notenough","Training costs 100 gold coins. You don't have enough!"},
+{"op_priest_success","Your skill has improved!"},
+{"op_priest_cost","Skill Training: 100 gold per skill"},
+//Humans
+{"op_human_fight","Fight"},
+{"op_human_thx","Thank you for the materials!"},
+{"op_human_noteought","I need more than that..."},
+//Blueprint
+{"op_blueprint_name","Enter blueprint name"},
+//Quest extra
+{"op_quest_search_start_pr_1","There is a "},
+{"op_quest_search_start_po_1"," somewhere nearby, check your map ..."},
+{"op_quest_failed_wait","Please wait before starting another quest."},
+{"op_munin_questfulll","You have too many quests, try to clear some before you add more"},
+//Pets
+{"op_se_troll","Pet Troll"},
+{"op_se_troll_tooltip","Summon a pet troll to fight for you"},
+{"op_ScrollFenring_name","Fenring Scroll"},
+{"op_ScrollFenring_tooltip","Duration:<color=orange><b>5</b></color>mins\n CoolDown:<color=orange><b>10</b></color>mins"},
+{"op_ScrollBrute_name","Brute Scroll"},
+{"op_ScrollBrute_tooltip","Duration:<color=orange><b>5</b></color>mins\n CoolDown:<color=orange><b>10</b></color>mins"},
+{"op_ScrollDverger_name","Dverger Pack Mule Scroll"},
+{"op_ScrollDverger_tooltip","Duration:<color=orange><b>30</b></color>mins\n Use your <color=orange><b>SecondaryKey</b></color> to open his backpack"},
 //Meads
 {"op_ExpMeadS_name","Exp Mead Small"},
 {"op_ExpMeadS_desc","Makes you level up faster!"},
@@ -329,40 +359,49 @@ namespace OdinPlus
 					.WithNamingConvention(UnderscoredNamingConvention.Instance)
 					.Build();
 
-				// Export English
 				string englishPath = Path.Combine(ConfigPath, "translations_english.yaml");
-				if (!File.Exists(englishPath))
-				{
-					string yaml = serializer.Serialize(english);
-					File.WriteAllText(englishPath, yaml);
-					DBG.blogInfo($"[Localization] Exported English translations to {englishPath}");
-				}
+				MergeAndWrite(englishPath, english, serializer);
 
-				// Export Chinese
 				string chinesePath = Path.Combine(ConfigPath, "translations_chinese.yaml");
-				if (!File.Exists(chinesePath))
-				{
-					string yaml = serializer.Serialize(chinese);
-					File.WriteAllText(chinesePath, yaml);
-					DBG.blogInfo($"[Localization] Exported Chinese translations to {chinesePath}");
-				}
-
-				// Create template for other languages
-				string templatePath = Path.Combine(ConfigPath, "translations_template.yaml");
-				if (!File.Exists(templatePath))
-				{
-					string yaml = "# OdinPlus Translation Template\n";
-					yaml += "# Copy this file and rename to: translations_<language>.yaml\n";
-					yaml += "# Supported language names: English, Chinese, Japanese, French, German, Spanish, Russian, etc.\n";
-					yaml += "# Language name must match Valheim's language setting exactly\n\n";
-					yaml += serializer.Serialize(english);
-					File.WriteAllText(templatePath, yaml);
-					DBG.blogInfo($"[Localization] Created translation template at {templatePath}");
-				}
+				MergeAndWrite(chinesePath, chinese, serializer);
 			}
 			catch (Exception ex)
 			{
 				DBG.blogError($"[Localization] Failed to export default translations: {ex.Message}");
+			}
+		}
+
+		private static void MergeAndWrite(string path, Dictionary<string, string> defaults, ISerializer serializer)
+		{
+			if (!File.Exists(path))
+			{
+				File.WriteAllText(path, serializer.Serialize(defaults));
+				return;
+			}
+			try
+			{
+				var deserializer = new DeserializerBuilder()
+					.WithNamingConvention(UnderscoredNamingConvention.Instance)
+					.Build();
+				var existing = deserializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
+				if (existing == null) existing = new Dictionary<string, string>();
+				bool changed = false;
+				foreach (var kvp in defaults)
+				{
+					if (!existing.ContainsKey(kvp.Key))
+					{
+						existing[kvp.Key] = kvp.Value;
+						changed = true;
+					}
+				}
+				if (changed)
+				{
+					File.WriteAllText(path, serializer.Serialize(existing));
+				}
+			}
+			catch
+			{
+				File.WriteAllText(path, serializer.Serialize(defaults));
 			}
 		}
 
@@ -408,19 +447,21 @@ namespace OdinPlus
 		}
 		public static void UpdateDictinary()
 		{
-			string missing = "Missing Words:";
+			int missingCount = 0;
 			foreach (var el in english)
 			{
 				if (t.ContainsKey(el.Key))
 				{
 					AddWord(new object[] { el.Key, t[el.Key] });
-					continue;
 				}
-				AddWord(new object[] { el.Key, el.Value });
-				missing+=el.Key;
+				else
+				{
+					AddWord(new object[] { el.Key, el.Value });
+					t[el.Key] = el.Value;
+					missingCount++;
+				}
 			}
-			DBG.blogInfo("Translation added");
-			DBG.blogWarning(missing);
+			DBG.blogInfo($"[Localization] {english.Count} translations registered ({missingCount} used English fallback)");
 		}
 	}
 }
