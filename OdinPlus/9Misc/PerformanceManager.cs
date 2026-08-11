@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace OdinPlus
@@ -16,7 +17,12 @@ namespace OdinPlus
 		}
 
 		private List<ScheduledAction> _scheduled = new List<ScheduledAction>();
-		private List<HumanNPC> _trackedNPCs = new List<HumanNPC>();
+		private struct NPCData
+	{
+		public HumanNPC npc;
+		public MonsterAI ai;
+	}
+	private List<NPCData> _trackedNPCs = new List<NPCData>();
 		private const float NPC_CULL_DISTANCE = 100f;
 
 		public static PerformanceManager Instance
@@ -90,13 +96,16 @@ namespace OdinPlus
 
 		public void RegisterNPC(HumanNPC npc)
 		{
-			if (!_trackedNPCs.Contains(npc))
-				_trackedNPCs.Add(npc);
+			if (npc == null) return;
+			if (_trackedNPCs.Any(d => d.npc == npc)) return;
+			var ai = npc.GetComponent<MonsterAI>();
+			_trackedNPCs.Add(new NPCData { npc = npc, ai = ai });
 		}
 
 		public void UnregisterNPC(HumanNPC npc)
 		{
-			_trackedNPCs.Remove(npc);
+			if (npc == null) return;
+			_trackedNPCs.RemoveAll(d => d.npc == npc);
 		}
 
 		private void CullDistantNPCs()
@@ -106,19 +115,18 @@ namespace OdinPlus
 
 			for (int i = _trackedNPCs.Count - 1; i >= 0; i--)
 			{
-				var npc = _trackedNPCs[i];
-				if (npc == null)
+				var data = _trackedNPCs[i];
+				if (data.npc == null)
 				{
 					_trackedNPCs.RemoveAt(i);
 					continue;
 				}
 
-				float dist = Vector3.Distance(npc.transform.position, playerPos);
+				float dist = Vector3.Distance(data.npc.transform.position, playerPos);
 				bool shouldBeActive = dist < NPC_CULL_DISTANCE;
 
-				var ai = npc.GetComponent<MonsterAI>();
-				if (ai != null && ai.enabled != shouldBeActive)
-					ai.enabled = shouldBeActive;
+				if (data.ai != null && data.ai.enabled != shouldBeActive)
+					data.ai.enabled = shouldBeActive;
 			}
 		}
 

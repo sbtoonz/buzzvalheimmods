@@ -130,6 +130,19 @@ namespace OdinPlus
 			var mat = new Material(_cachedGhostShader);
 			mat.color = color;
 			if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+
+			// Enable alpha blending for transparency
+			if (mat.HasProperty("_Mode"))
+			{
+				mat.SetInt("_Mode", 3); // Transparent mode
+				mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+				mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+				mat.SetInt("_ZWrite", 0);
+				mat.DisableKeyword("_ALPHATEST_ON");
+				mat.EnableKeyword("_ALPHABLEND_ON");
+				mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+			}
+
 			mat.renderQueue = 3000;
 			return mat;
 		}

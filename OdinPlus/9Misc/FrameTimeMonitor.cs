@@ -10,6 +10,10 @@ namespace OdinPlus
 		private float _lastFrameTime;
 		private const float STUTTER_THRESHOLD_MS = 50f; // Log frames >50ms (20 FPS)
 
+		// DISABLED - this component makes stutters WORSE while trying to measure them.
+		// Allocates strings + calls expensive APIs (GetActiveZones, NrOfObjects) during
+		// the exact frame that's already performance-critical.
+		/*
 		private void Update()
 		{
 			float currentFrameTime = Time.deltaTime * 1000f;
@@ -24,6 +28,7 @@ namespace OdinPlus
 
 			_lastFrameTime = currentFrameTime;
 		}
+		*/
 
 		private void LogActiveExpensiveSystems()
 		{

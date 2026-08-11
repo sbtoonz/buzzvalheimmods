@@ -318,15 +318,8 @@ namespace OdinPlus
 					}
 					return codes.AsEnumerable();
 				} */
-		[HarmonyPatch(typeof(Localization), "Translate")]
-		private static class Postfix_Localization_Translate
-		{
-			private static void Postfix(ref string __result)
-			{
-				if (__result.Length > 0 && __result[0] == '[')
-					UnLocal.Add(__result);
-			}
-		}
+		// Localization.Translate patch REMOVED - fired 1000s/sec on game's hottest method for dev-only
+		// untranslated string collection. Massive Harmony overhead for zero gameplay value.
 
 		private static void PrintMeadsList()
 		{
