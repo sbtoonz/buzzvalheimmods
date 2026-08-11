@@ -25,6 +25,8 @@ namespace OdinPlus
 		 "HelmetIron", "HelmetLeather", "HelmetPadded", "HelmetTrollLeather", "HelmetYule" };
 		public static string[] Shield = { "ShieldBanded", "ShieldBlackmetal", "ShieldBlackmetalTower", "ShieldBronzeBuckler", "ShieldIronSquare", "ShieldIronTower", "ShieldKnight", "ShieldSerpentscale", "ShieldSilver", "ShieldWood", "ShieldWoodTower" };
 		public static string[] Tools = { "AxeIron", "PickAxeIron" };
+		public static string[] GuardWeapons = { "SwordBronze", "SwordIron", "SwordSilver", "AxeIron", "AxeBronze", "AxeBlackMetal", "Battleaxe", "AtgeirIron", "AtgeirBronze" };
+		public static string[] GuardShields = { "ShieldBanded", "ShieldIronSquare", "ShieldBronzeBuckler", "ShieldWood", "ShieldKnight", "ShieldSilver" };
 		private class humanData
 		{
 			public string presetNAME = "MidEnemy1";
@@ -40,7 +42,7 @@ namespace OdinPlus
 			public string[] sheild = { "ShieldBanded", "ShieldBlackmetal", "ShieldBlackmetalTower", "ShieldBronzeBuckler", "ShieldIronSquare", "ShieldIronTower", "ShieldKnight", "ShieldSerpentscale", "ShieldSilver", "ShieldWood", "ShieldWoodTower" };
 			//public string[] armor = { "ArmorBronzeChest", "ArmorBronzeLegs", "ArmorIronChest", "ArmorIronLegs", "CapeTrollHide", "CapeWolf", "HelmetBronze", "HelmetDrake", "HelmetIron" };
 		}
-		private static List<humanData> presets = new List<humanData>
+			private static List<humanData> presets = new List<humanData>
 		{
 			new humanData(),
 			new humanData(){presetNAME="LowEnemey1",health=300,
@@ -64,20 +66,46 @@ namespace OdinPlus
 			sets="Troll0",
 			m_randomMoveRange=5,
 			m_randomMoveInterval=15,
-			weapons=Tools,
+			weapons=new string[]{"AxeIron","AxeBronze","AxeFlint"},
 			sheild=new string[]{""},
 			isFriend=true,
 			},
-			new humanData(){presetNAME="GuardNPC",health=300,
+			new humanData(){presetNAME="BuilderWorker",health=300,
+			sets="Leather",
+			m_randomMoveRange=8,
+			m_randomMoveInterval=15,
+			weapons=new string[]{"Hammer"},
+			sheild=new string[]{""},
+			isFriend=true,
+			},
+			new humanData(){presetNAME="PriestNPC",health=200,
+			sets="Robes",
+			m_randomMoveRange=3,
+			m_randomMoveInterval=30,
+			weapons=new string[]{""},
+			sheild=new string[]{""},
+			isFriend=true,
+			},
+			new humanData(){presetNAME="MessengerNPC",health=250,
+			sets="Troll0",
+			m_randomMoveRange=5,
+			m_randomMoveInterval=15,
+			weapons=new string[]{""},
+			sheild=new string[]{""},
+			isFriend=true,
+			},
+			new humanData(){presetNAME="GuardNPC",health=400,
 			sets="Padded0",
 			m_randomMoveInterval=5,
-			m_randomMoveRange=60,
+			m_randomMoveRange=20,
+			weapons=GuardWeapons,
+			sheild=GuardShields,
 			isFriend=true,
 			}
 		};
 		#endregion Presets
 		public static Dictionary<string, GameObject> HumanPreset = new Dictionary<string, GameObject>();
-		public static Dictionary<string, string[]> ArmorSets = new Dictionary<string, string[]>
+			public static Dictionary<string, string[]> ArmorSets = new Dictionary<string, string[]>
 		{
 			{"Troll",new string[]{"HelmetTrollLeather","CapeTrollHide","ArmorTrollLeatherChest","ArmorTrollLeatherLegs"}},
 			{"Troll0",new string[]{"CapeTrollHide","ArmorTrollLeatherChest","ArmorTrollLeatherLegs"}},
@@ -85,7 +113,9 @@ namespace OdinPlus
 			{"Iron",new string[]{"ArmorIronChest","ArmorIronLegs","HelmetIron","CapeLinen"}},
 			{"Silver",new string[]{"ArmorWolfChest","ArmorWolfLegs","HelmetDrake","CapeWolf"}},
 			{"Padded",new string[]{"ArmorPaddedCuirass","ArmorPaddedGreaves","HelmetPadded","CapeLinen"}},
-			{"Padded0",new string[]{"ArmorPaddedCuirass","ArmorPaddedGreaves","CapeLinen"}}
+			{"Padded0",new string[]{"ArmorPaddedCuirass","ArmorPaddedGreaves","CapeLinen"}},
+			{"Leather",new string[]{"ArmorLeatherChest","ArmorLeatherLegs","CapeDeerHide"}},
+			{"Robes",new string[]{"ArmorDress7","HelmetPointyHat","CapeFeather"}}
 		};
 		public static void Init()
 		{
@@ -125,18 +155,16 @@ namespace OdinPlus
 			go.name = "BasicHuman";
 
 		}
-		public static void HumanNpc()
+			public static void HumanNpc()
 		{
 			CreateNPC<HumanFighter>("Fighter1");
 			CreateNPC<HumanFighter>("Fighter2");
 			CreateNPC<MaterialVillager>("DumbWorker", "MatNPCHuman");
-			CreateNPC<HumanMessager>("DumbWorker", "MessageNPCHuman");
+			CreateNPC<HumanMessager>("MessengerNPC", "MessageNPCHuman");
 			CreateNPC<HumanWorker>("DumbWorker", "WorkerNPCHuman");
-			CreateNPC<HumanVillager>("GuardNPC", "GuardVillager");
-			// BuilderNPC was fully implemented (ghost/incremental construction, self-gathering,
-			// material requests) but never actually registered as a spawnable prefab - couldn't be
-			// spawned via console or found in villages at all until this line existed.
-			CreateNPC<BuilderNPC>("DumbWorker", "BuilderNPCHuman");
+			CreateNPC<VillagePriest>("PriestNPC", "PriestNPCHuman");
+			CreateNPC<GuardNPC>("GuardNPC", "GuardVillager");
+			CreateNPC<BuilderNPC>("BuilderWorker", "BuilderNPCHuman");
 		}
 		public static void CreateNPC<T>(string pname, string goname) where T : Component
 		{
@@ -418,7 +446,6 @@ namespace OdinPlus
 		// never miss the spawn event. TrySeedVillage() below is idempotent (a custom
 		// "OdinVillageSeeded" ZDO flag on that same persistent ZDO) so it's safe to call from both hooks
 		// and safe across many zone reloads / repeated sessions without ever duplicating NPCs.
-		private static readonly int WoodFarm1LocationHash = "WoodFarm1".GetStableHashCode();
 
 		public static void TrySeedVillage(LocationProxy proxy)
 		{
@@ -436,10 +463,26 @@ namespace OdinPlus
 			{
 				return;
 			}
-			if (zdo.GetInt(ZDOVars.s_location) != WoodFarm1LocationHash)
+
+			int locationHash = zdo.GetInt(ZDOVars.s_location);
+			if (locationHash == 0) return;
+
+			string matchedLocation = null;
+			foreach (var locationName in FactionManager.VillageLocations)
 			{
+				if (locationHash == locationName.GetStableHashCode())
+				{
+					matchedLocation = locationName;
+					break;
+				}
+			}
+
+			if (matchedLocation == null)
+			{
+				DBG.blogWarning($"[HumanManager] TrySeedVillage NO MATCH hash={locationHash} pos={proxy.transform.position} listCount={FactionManager.VillageLocations.Count}");
 				return;
 			}
+			DBG.blogWarning($"[HumanManager] TrySeedVillage matched: {matchedLocation} at {proxy.transform.position}");
 			if (zdo.GetBool("OdinVillageSeeded", false))
 			{
 				return;
@@ -453,39 +496,108 @@ namespace OdinPlus
 			// returned and reset the flag, so each spawner gets a clean, correctly-created ZDO.
 			var pos = proxy.transform.position;
 			var rot = proxy.transform.rotation;
-			ZNetScene.instance.StartCoroutine(SpawnVillageNextFrame(pos, rot));
+			ZNetScene.instance.StartCoroutine(SpawnVillageNextFrame(pos, rot, matchedLocation));
 		}
 
-		private static IEnumerator SpawnVillageNextFrame(Vector3 pos, Quaternion rot)
+		private static IEnumerator SpawnVillageNextFrame(Vector3 pos, Quaternion rot, string locationName)
 		{
 			yield return null;
-			SpawnVillageAt(pos, rot);
+			SpawnVillageAt(pos, rot, locationName);
 		}
 
-		public static void SpawnVillageAt(Vector3 pos, Quaternion rot)
+		private static bool IsFullVillage(string locationName)
 		{
-			var guardPrefab = ZNetScene.instance.GetPrefab("GuardVillager" + "Spawner");
-			var msgPrefab = ZNetScene.instance.GetPrefab("MessageNPCHuman" + "Spawner");
-			var rscPrefab = ZNetScene.instance.GetPrefab("MatNPCHuman" + "Spawner");
-			var builderPrefab = ZNetScene.instance.GetPrefab("BuilderNPCHuman" + "Spawner");
-			if (guardPrefab == null || msgPrefab == null || rscPrefab == null || builderPrefab == null)
+			return locationName.StartsWith("WoodFarm") || locationName.StartsWith("WoodVillage") ||
+				locationName.StartsWith("WoodHouse") || locationName.StartsWith("GoblinCamp") ||
+				locationName.StartsWith("Mistlands_Harbour") || locationName.StartsWith("Mistlands_DvergrTown") ||
+				locationName.StartsWith("CharredFortress");
+		}
+
+		public static void SpawnVillageAt(Vector3 pos, Quaternion rot, string locationName)
+		{
+			if (UnityEngine.Random.value > FactionManager.NpcConfig.SpawnChance) return;
+
+			string faction = PickRandomFaction();
+			bool fullVillage = IsFullVillage(locationName);
+
+			if (fullVillage)
 			{
-				DBG.blogWarning("[HumanManager] Village spawner prefab(s) missing (guard/msg/resource/builder), aborting village seed at " + pos);
+				PlaceSpawner("MatNPCHumanSpawner", pos + rot * new Vector3(5, 0, 5), rot, faction, FactionManager.NpcConfig.VillagerPatrolRadius);
+				PlaceSpawner("MessageNPCHumanSpawner", pos + rot * new Vector3(5.5f, 0, 5.5f), rot, faction, FactionManager.NpcConfig.MessengerPatrolRadius);
+				PlaceSpawner("BuilderNPCHumanSpawner", pos + rot * new Vector3(6f, 0, 6f), rot, faction, FactionManager.NpcConfig.BuilderPatrolRadius);
+				PlaceSpawner("PriestNPCHumanSpawner", pos + rot * new Vector3(4f, 0, 7f), rot, faction, FactionManager.NpcConfig.PriestPatrolRadius);
+
+				for (int i = 0; i < FactionManager.NpcConfig.GuardsPerVillage; i++)
+					PlaceSpawner("GuardVillagerSpawner", pos + rot * new Vector3(10.RollDices(), 0, 10.RollDices()), rot, faction, FactionManager.NpcConfig.GuardPatrolRadius);
+
+				DBG.blogInfo($"[HumanManager] Seeded VILLAGE ({faction}) at {pos} [{locationName}]");
+			}
+			else
+			{
+				for (int i = 0; i < FactionManager.NpcConfig.GuardsPerCamp; i++)
+					PlaceSpawner("GuardVillagerSpawner", pos + rot * new Vector3(10.RollDices(), 0, 10.RollDices()), rot, faction, FactionManager.NpcConfig.GuardPatrolRadius);
+
+				DBG.blogInfo($"[HumanManager] Seeded CAMP ({faction}) at {pos} [{locationName}]");
+			}
+		}
+
+		private static void PlaceSpawner(string spawnerName, Vector3 pos, Quaternion rot, string faction, float patrolRadius)
+		{
+			var prefab = ZNetScene.instance.GetPrefab(spawnerName);
+			if (prefab == null)
+			{
+				DBG.blogWarning($"[HumanManager] Spawner prefab '{spawnerName}' not found");
 				return;
 			}
-			var rsc = Instantiate(rscPrefab, pos + rot * new Vector3(5, 0, 5), rot);
-			var msg = Instantiate(msgPrefab, pos + rot * new Vector3(5.5f, 0, 5.5f), rot);
-			var builder = Instantiate(builderPrefab, pos + rot * new Vector3(6f, 0, 6f), rot);
-			rsc.name = rsc.name.RemoveClone();
-			msg.name = msg.name.RemoveClone();
-			builder.name = builder.name.RemoveClone();
-			for (int i = 0; i < 9; i++)
+			var go = Instantiate(prefab, pos, rot);
+			go.name = spawnerName;
+
+			var spawner = go.GetComponent<CreatureSpawner>();
+			if (spawner != null)
 			{
-				var guard = Instantiate(guardPrefab, pos + rot * new Vector3(10.RollDices(), 0, 10.RollDices()), rot);
-				guard.name = guard.name.RemoveClone();
+				spawner.m_setPatrolSpawnPoint = true;
+				spawner.m_spawnAtDay = true;
+				spawner.m_spawnAtNight = true;
+				spawner.m_requireSpawnArea = false;
+				spawner.m_spawnInPlayerBase = true;
+				spawner.m_triggerDistance = 0f;
 			}
-			DBG.blogWarning("[HumanManager] Seeded village NPCs at " + pos);
+
+			var znv = go.GetComponent<ZNetView>();
+			if (znv != null && znv.GetZDO() != null)
+			{
+				znv.GetZDO().Set("npc_faction", faction);
+				znv.GetZDO().Set("npc_patrol_radius", patrolRadius);
+			}
 		}
+
+		private static void ApplyPatrolRadius(GameObject go, float radius)
+		{
+			var ai = go.GetComponentInChildren<MonsterAI>(true);
+			if (ai != null) ai.m_randomMoveRange = radius;
+		}
+
+		private static string PickRandomFaction()
+		{
+			var candidates = new List<string>();
+			foreach (var kv in FactionManager.Factions)
+			{
+				if (kv.Key == "Neutral" || kv.Key == "Villagers") continue;
+				candidates.Add(kv.Key);
+			}
+			if (candidates.Count == 0) return "Villagers";
+			return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+		}
+
+		private static void SetNpcFaction(GameObject go, string faction)
+		{
+			var npc = go.GetComponentInChildren<HumanNPC>(true);
+			if (npc != null) npc.FactionName = faction;
+			var znv = go.GetComponentInChildren<ZNetView>(true);
+			if (znv != null && znv.GetZDO() != null)
+				znv.GetZDO().Set("npc_faction", faction);
+		}
+
 		private static readonly string[] rstones = new string[] { "Runestone_Meadows", "Runestone_Swamps", "Runestone_BlackForest" };
 		public static void HackingRuneStones()
 		{
