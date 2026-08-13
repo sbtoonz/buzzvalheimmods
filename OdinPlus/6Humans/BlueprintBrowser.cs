@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace OdinPlus
 {
@@ -177,6 +178,10 @@ namespace OdinPlus
 
 			// Keep Canvas always active
 			_canvas.SetActive(true);
+
+			// Make window draggable
+			var dragHandler = _root.AddComponent<DragHandler>();
+			DBG.blogInfo("[BlueprintBrowser] Added drag handler to window");
 
 			// Fix Window background - make it transparent or it renders as black circle
 			var windowImg = window.GetComponent<Image>();
@@ -523,6 +528,35 @@ namespace OdinPlus
 					return mat;
 			}
 			return null;
+		}
+
+		/// <summary>
+		/// Makes a UI element draggable
+		/// </summary>
+		private class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
+		{
+			private Vector2 _dragOffset;
+			private RectTransform _rectTransform;
+
+			private void Awake()
+			{
+				_rectTransform = GetComponent<RectTransform>();
+			}
+
+			public void OnBeginDrag(PointerEventData eventData)
+			{
+				RectTransformUtility.ScreenPointToLocalPointInRectangle(
+					_rectTransform, eventData.position, eventData.pressEventCamera, out _dragOffset);
+			}
+
+			public void OnDrag(PointerEventData eventData)
+			{
+				if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+					_rectTransform.parent as RectTransform, eventData.position, eventData.pressEventCamera, out Vector2 localPos))
+				{
+					_rectTransform.localPosition = localPos - _dragOffset;
+				}
+			}
 		}
 	}
 }
