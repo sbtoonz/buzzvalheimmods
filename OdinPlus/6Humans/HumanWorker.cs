@@ -8,12 +8,12 @@ namespace OdinPlus
 		{
 			base.Awake();
 			m_name = "Worker";
-			ChoiceList = new string[1] { "$op_talk" };
+			ChoiceList = new[] { "$op_talk" };
 		}
 		public override void Choice0()
 		{
-			string npcName = m_nview.GetZDO().GetString("npcname", "");
-			if (!string.IsNullOrEmpty(npcName) && OdinData.GetKey(npcName))
+			var npcName = m_nview.GetZDO().GetString("npcname", "");
+			if(!string.IsNullOrEmpty(npcName) && OdinData.GetKey(npcName))
 			{
 				OdinData.RemoveKey(npcName);
 				HumanMessager.RemoveQuestPin(npcName);

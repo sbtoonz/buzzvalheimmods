@@ -79,13 +79,13 @@ namespace OdinPlus
 		{
 			var hum = GetComponent<Humanoid>();
 			string name = hum != null ? hum.m_name : gameObject.name;
-			string text = $"<color=cyan>{name}</color>";
+			string text = $"<color=#00FFFF>{name}</color>";
 			text += $"\n[<color=yellow><b>E</b></color>] Pet (Follow)";
 			text += $"\n[<color=yellow><b>Alt+E</b></color>] Open Inventory";
 			if (m_inventory != null)
 			{
 				float weight = m_inventory.GetTotalWeight();
-				text += $"\n<color=white>Carrying: {weight:0.0}kg / {m_maxWeight}kg</color>";
+				text += $"\nCarrying: {weight:0.0}kg / {m_maxWeight}kg";
 			}
 			return Localization.instance.Localize(text);
 		}

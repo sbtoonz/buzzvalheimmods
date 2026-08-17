@@ -13,35 +13,34 @@ namespace OdinPlus
 
 	public static class DBG
 	{
-		public static LogLevel Level = LogLevel.Info;
+		internal static LogLevel Level = LogLevel.Info;
 
-		public static void cprt(string s)
-		{
-			global::Console.instance.Print(s);
-		}
-		public static void InfoTL(string s)
-		{
+		public static void cprt(string s) => global::Console.instance.Print(s);
+
+		public static void InfoTL(string s) =>
 			Player.m_localPlayer.Message(MessageHud.MessageType.TopLeft, s, 0, null);
-		}
-		public static void InfoCT(string s)
-		{
+
+		public static void InfoCT(string s) =>
 			Player.m_localPlayer.Message(MessageHud.MessageType.Center, s, 0, null);
-		}
+
 		public static void blogDebug(object o)
 		{
-			if (Level >= LogLevel.Debug) Plugin.logger.LogInfo("[DBG] " + o);
+			if(Level >= LogLevel.Debug) Plugin.logger.LogInfo($"[DBG] {o}");
 		}
+
 		public static void blogInfo(object o)
 		{
-			if (Level >= LogLevel.Info) Plugin.logger.LogInfo(o);
+			if(Level >= LogLevel.Info) Plugin.logger.LogInfo(o);
 		}
+
 		public static void blogWarning(object o)
 		{
-			if (Level >= LogLevel.Warn) Plugin.logger.LogWarning(o);
+			if(Level >= LogLevel.Warn) Plugin.logger.LogWarning(o);
 		}
+
 		public static void blogError(object o)
 		{
-			if (Level >= LogLevel.Error) Plugin.logger.LogError(o);
+			if(Level >= LogLevel.Error) Plugin.logger.LogError(o);
 		}
 	}
 }

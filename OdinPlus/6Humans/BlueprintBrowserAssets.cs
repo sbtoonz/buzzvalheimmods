@@ -15,14 +15,14 @@ namespace OdinPlus
 			var assembly = Assembly.GetExecutingAssembly();
 			var bundleData = Util.GetResource(assembly, "OdinPlus.Resources.blueprintui");
 
-			if (bundleData == null || bundleData.Length == 0)
+			if(bundleData == null || bundleData.Length == 0)
 			{
 				DBG.blogError("[BlueprintBrowserAssets] Failed to load blueprintui bundle from embedded resources");
 				return;
 			}
 
 			var bundle = AssetBundle.LoadFromMemory(bundleData);
-			if (bundle == null)
+			if(bundle == null)
 			{
 				DBG.blogError("[BlueprintBrowserAssets] Failed to load AssetBundle from memory");
 				return;
@@ -30,11 +30,9 @@ namespace OdinPlus
 
 			// Load the prefab (try v2 first, fallback to v1)
 			BlueprintBrowserPrefab = bundle.LoadAsset<GameObject>("BlueprintBrowserGUI_v2");
-			if (BlueprintBrowserPrefab == null)
-			{
+			if(BlueprintBrowserPrefab == null)
 				BlueprintBrowserPrefab = bundle.LoadAsset<GameObject>("BlueprintBrowserGUI");
-			}
-			if (BlueprintBrowserPrefab == null)
+			if(BlueprintBrowserPrefab == null)
 			{
 				DBG.blogError("[BlueprintBrowserAssets] BlueprintBrowserGUI prefab not found in bundle");
 				bundle.Unload(true);

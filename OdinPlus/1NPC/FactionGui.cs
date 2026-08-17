@@ -11,91 +11,103 @@ namespace OdinPlus
 	// in the project. Built from scratch to match that documented spec.
 	public class FactionGui : MonoBehaviour
 	{
-		private static FactionGui _instance;
+		#region Fields
 
-		private GameObject _root;
-		private RectTransform _panelRect;
-		private RectTransform _listRoot;
-		private Font _font;
-		private readonly List<GameObject> _rows = new List<GameObject>();
-		private bool _isDragging = false;
-		private Vector2 _dragOffset;
+		static FactionGui _instance;
+
+		GameObject _root;
+		RectTransform _panelRect;
+		RectTransform _listRoot;
+		Font _font;
+		readonly List<GameObject> _rows = new();
+		bool _isDragging = false;
+		Vector2 _dragOffset;
+
+		#endregion Fields
+
+		#region Init
 
 		public static void Init()
 		{
-			if (_instance != null) return;
+			if(_instance != null) return;
 			var go = new GameObject("OdinPlusFactionGui");
 			DontDestroyOnLoad(go);
 			_instance = go.AddComponent<FactionGui>();
 		}
 
-		private void Update()
+		#endregion Init
+
+		#region Mono
+
+		void Update()
 		{
-			if (Player.m_localPlayer == null) return;
+			if(Player.m_localPlayer == null) return;
 
 			// Toggle visibility with F7
-			if (Input.GetKeyDown(KeyCode.F7))
+			if(Input.GetKeyDown(KeyCode.F7))
 			{
-				if (_root == null) BuildUI();
-				bool show = !_root.activeSelf;
+				if(_root == null) BuildUI();
+				var show = !_root.activeSelf;
 				_root.SetActive(show);
-				if (show) RefreshList();
+				if(show) RefreshList();
 			}
 
 			// Handle dragging
-			if (_root != null && _root.activeSelf && _panelRect != null)
+			if(_root != null && _root.activeSelf && _panelRect != null)
 			{
-				if (Input.GetMouseButtonDown(0))
+				if(Input.GetMouseButtonDown(0))
 				{
 					Vector2 mousePos = Input.mousePosition;
-					if (RectTransformUtility.RectangleContainsScreenPoint(_panelRect, mousePos))
+					if(RectTransformUtility.RectangleContainsScreenPoint(_panelRect, mousePos))
 					{
 						RectTransformUtility.ScreenPointToLocalPointInRectangle(
 							_panelRect.parent as RectTransform,
 							mousePos,
 							null,
-							out Vector2 localPoint);
+							out var localPoint);
 						_dragOffset = localPoint - _panelRect.anchoredPosition;
 						_isDragging = true;
 					}
 				}
 
-				if (Input.GetMouseButtonUp(0))
-				{
+				if(Input.GetMouseButtonUp(0))
 					_isDragging = false;
-				}
 
-				if (_isDragging)
+				if(_isDragging)
 				{
 					RectTransformUtility.ScreenPointToLocalPointInRectangle(
 						_panelRect.parent as RectTransform,
 						Input.mousePosition,
 						null,
-						out Vector2 localPoint);
+						out var localPoint);
 					_panelRect.anchoredPosition = localPoint - _dragOffset;
 				}
 			}
 		}
 
-		private void RefreshList()
+		#endregion Mono
+
+		#region UI Logic
+
+		void RefreshList()
 		{
-			foreach (var row in _rows) Destroy(row);
+			foreach(var row in _rows) Destroy(row);
 			_rows.Clear();
 
-			string playerID = Player.m_localPlayer.GetZDOID().ToString();
-			float y = 0f;
-			foreach (var factionName in FactionManager.GetAllFactions())
+			var playerID = Player.m_localPlayer.GetZDOID().ToString();
+			var y = 0f;
+			foreach(var factionName in FactionManager.GetAllFactions())
 			{
-				int rep = FactionManager.GetReputation(playerID, factionName);
+				var rep = FactionManager.GetReputation(playerID, factionName);
 				var tier = FactionManager.GetReputationTier(playerID, factionName);
 				AddRow($"{factionName}: {tier} ({rep})", TierColor(tier), y);
 				y -= 26f;
 			}
 		}
 
-		private static Color TierColor(ReputationTier tier)
+		static Color TierColor(ReputationTier tier)
 		{
-			switch (tier)
+			switch(tier)
 			{
 				case ReputationTier.Hostile: return new Color(0.9f, 0.25f, 0.25f);
 				case ReputationTier.Unfriendly: return new Color(0.9f, 0.6f, 0.2f);
@@ -105,7 +117,7 @@ namespace OdinPlus
 			}
 		}
 
-		private void AddRow(string text, Color color, float y)
+		void AddRow(string text, Color color, float y)
 		{
 			var row = new GameObject("Row").AddComponent<Text>();
 			row.transform.SetParent(_listRoot, false);
@@ -124,7 +136,7 @@ namespace OdinPlus
 			_rows.Add(row.gameObject);
 		}
 
-		private void BuildUI()
+		void BuildUI()
 		{
 			_font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
@@ -150,7 +162,7 @@ namespace OdinPlus
 
 			var panelBg = _root.AddComponent<Image>();
 			var litpanel = FindLitPanelMaterial();
-			if (litpanel != null)
+			if(litpanel != null)
 			{
 				panelBg.material = litpanel;
 				panelBg.color = Color.white;
@@ -200,15 +212,17 @@ namespace OdinPlus
 			_root.SetActive(false);
 		}
 
-		private static Material FindLitPanelMaterial()
+		static Material FindLitPanelMaterial()
 		{
 			var materials = Resources.FindObjectsOfTypeAll<Material>();
-			foreach (var mat in materials)
+			foreach(var mat in materials)
 			{
-				if (mat != null && mat.name.IndexOf("litpanel", StringComparison.OrdinalIgnoreCase) >= 0)
+				if(mat != null && mat.name.IndexOf("litpanel", StringComparison.OrdinalIgnoreCase) >= 0)
 					return mat;
 			}
 			return null;
 		}
+
+		#endregion UI Logic
 	}
 }

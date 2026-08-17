@@ -63,8 +63,6 @@ namespace OdinPlus
 
 			Plugin.preODB = (Action<ObjectDB>)Delegate.Combine(Plugin.preODB, (Action<ObjectDB>)PreODB);
 			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)FactionManager.RegisterRpc);
-			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)FactionQuestManager.RegisterRpc);
-			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)BlueprintConfig.RegisterRpc);
 
 			Root.AddComponent<OdinData>();
 			Root.AddComponent<QuestManager>();
@@ -127,44 +125,46 @@ namespace OdinPlus
 		}
 		public static void PostZone()
 		{
-
-			LocationManager.Init();
-			OdinPlus.InitNPC();
-			// Runs continuously from now on so vanilla's build-hud strip gets hidden the moment
-			// BlueprintTool is equipped, not only after the player first opens the Browser.
-			BlueprintBrowser.Init();
-
-			// F7 faction reputation overlay - documented as an existing feature but never actually
-			// implemented; must be initialized eagerly so F7 works immediately without requiring any
-			// other prior interaction.
-			FactionGui.Init();
-
-			// Factions must load BEFORE blueprints — BlueprintConfig.SyncVillagersAssignment()
-			// adds "Villagers" to the Factions dict, but FactionManager.LoadConfig replaces the
-			// entire dict from YAML. Loading factions first ensures the dict exists before blueprints
-			// append to it.
-			FactionManager.LoadConfig(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_config.yaml"));
-			FactionQuestManager.LoadQuests(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_quests.yaml"));
-			BlueprintConfig.LoadFromFile();
-
-			if (ZNet.instance.IsServer())
+			DBG.blogWarning("[OdinPlus] PostZone starting");
+			try
 			{
-				BlueprintConfig.BroadcastSync();
-				FactionManager.BroadcastSync();
-				FactionQuestManager.BroadcastSync();
+				// Config must load FIRST so LocationManager.Init() can read OdinPosition from General settings,
+				// and so VillageLocations is populated before TrySeedVillage runs.
+				FactionManager.LoadConfig(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_config.yaml"));
+				FactionQuestManager.LoadQuests(System.IO.Path.Combine(BepInEx.Paths.ConfigPath, "faction_quests.yaml"));
+				BlueprintConfig.LoadFromFile();
+
+				LocationManager.Init();
+				OdinPlus.InitNPC();
+				BlueprintBrowser.Init();
+				FactionGui.Init();
+
+				if (ZNet.instance.IsServer())
+				{
+					// Push all configs to each peer that connects after us
+					ZRoutedRpc.instance.m_onNewPeer = (Action<long>)Delegate.Combine(
+						ZRoutedRpc.instance.m_onNewPeer,
+						new Action<long>(OnNewPeerSync));
+				}
+
+				if (ZNet.instance.IsDedicated() && ZNet.instance.IsServer())
+				{
+					OdinData.loadOdinData(ZNet.instance.GetWorldName());
+				}
+				DBG.blogWarning("[OdinPlus] PostZone complete");
 			}
-			else
+			catch (Exception e)
 			{
-				BlueprintConfig.RequestSyncFromServer();
-				FactionManager.RequestSyncFromServer();
-				FactionQuestManager.RequestSyncFromServer();
-			}
-
-			if (ZNet.instance.IsDedicated() && ZNet.instance.IsServer())
-			{
-				OdinData.loadOdinData(ZNet.instance.GetWorldName());
+				DBG.blogError($"[OdinPlus] PostZone FAILED: {e}");
 			}
 		}
+		private static void OnNewPeerSync(long peerUID)
+		{
+			if (!ZNet.instance.IsServer()) return;
+			DBG.blogInfo($"[OdinPlus] New peer {peerUID} connected — syncing reputation");
+			FactionManager.SyncToPeer(peerUID);
+		}
+
 		public static void InitNPC()
 		{
 			Root.AddComponent<NpcManager>();

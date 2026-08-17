@@ -3,7 +3,6 @@ namespace OdinPlus
 {
 	public interface OdinInteractable
 	{
-		void SecondaryInteract (Humanoid user);
-
+		void SecondaryInteract(Humanoid user);
 	}
 }

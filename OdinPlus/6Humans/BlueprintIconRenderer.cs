@@ -5,20 +5,20 @@ namespace OdinPlus
 {
 	public static class BlueprintIconRenderer
 	{
-		private static Dictionary<string, Sprite> _cache = new Dictionary<string, Sprite>();
-		private static readonly Vector3 StagePos = new Vector3(0f, -500f, 0f);
-		private const int IconSize = 512; // High-res for 384x384 display (was 128)
+		static Dictionary<string, Sprite> _cache = new();
+		static readonly Vector3 StagePos = new(0f, -500f, 0f);
+		const int IconSize = 512; // High-res for 384x384 display (was 128)
 
 		public static void ClearCache() => _cache.Clear();
 
 		public static Sprite GetIcon(Blueprint bp)
 		{
-			if (bp == null || bp.pieces == null || bp.pieces.Length == 0)
+			if(bp == null || bp.pieces == null || bp.pieces.Length == 0)
 			{
 				DBG.blogWarning($"[BlueprintIconRenderer] GetIcon: Invalid blueprint");
 				return null;
 			}
-			if (_cache.TryGetValue(bp.name, out var cached))
+			if(_cache.TryGetValue(bp.name, out var cached))
 			{
 				DBG.blogInfo($"[BlueprintIconRenderer] GetIcon: Using cached sprite for '{bp.name}'");
 				return cached;
@@ -26,7 +26,7 @@ namespace OdinPlus
 
 			DBG.blogInfo($"[BlueprintIconRenderer] GetIcon: Rendering new sprite for '{bp.name}' with {bp.pieces.Length} pieces");
 			var sprite = RenderBlueprint(bp);
-			if (sprite != null)
+			if(sprite != null)
 			{
 				_cache[bp.name] = sprite;
 				DBG.blogInfo($"[BlueprintIconRenderer] GetIcon: Successfully rendered '{bp.name}'");
@@ -38,36 +38,34 @@ namespace OdinPlus
 			return sprite;
 		}
 
-		private static Sprite RenderBlueprint(Blueprint bp)
+		static Sprite RenderBlueprint(Blueprint bp)
 		{
 			var spawned = new List<GameObject>();
 
-			foreach (var piece in bp.pieces)
+			foreach(var piece in bp.pieces)
 			{
 				var prefab = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(piece.prefabName) : null;
-				if (prefab == null) continue;
+				if(prefab == null) continue;
 
 				ZNetView.m_forceDisableInit = true;
 				var go = Object.Instantiate(prefab, StagePos + piece.localPosition, Quaternion.Euler(piece.rotation));
 				ZNetView.m_forceDisableInit = false;
 
-				foreach (var znv in go.GetComponentsInChildren<ZNetView>(true))
-				{
+				foreach(var znv in go.GetComponentsInChildren<ZNetView>(true))
 					Object.DestroyImmediate(znv);
-				}
 
 				// Strip physics/gameplay components
 				StripNetworkingComponents(go);
 				spawned.Add(go);
 			}
 
-			if (spawned.Count == 0) return null;
+			if(spawned.Count == 0) return null;
 
 			// Compute bounds
 			var bounds = new Bounds(spawned[0].transform.position, Vector3.zero);
-			foreach (var go in spawned)
+			foreach(var go in spawned)
 			{
-				foreach (var r in go.GetComponentsInChildren<Renderer>())
+				foreach(var r in go.GetComponentsInChildren<Renderer>())
 					bounds.Encapsulate(r.bounds);
 			}
 
@@ -98,11 +96,11 @@ namespace OdinPlus
 			cam.nearClipPlane = 0.01f;
 
 			// Isometric angle: front-right, 30° elevation — shows roof + two walls
-			float size = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
-			if (size < 0.1f) size = 5f;
+			var size = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+			if(size < 0.1f) size = 5f;
 			cam.orthographicSize = size * 0.85f;
 			cam.farClipPlane = size * 5f;
-			Vector3 offset = Quaternion.Euler(30f, 45f, 0f) * (Vector3.back * size * 2f);
+			var offset = Quaternion.Euler(30f, 45f, 0f) * (Vector3.back * size * 2f);
 			camGo.transform.position = bounds.center + offset;
 			camGo.transform.LookAt(bounds.center);
 
@@ -125,34 +123,32 @@ namespace OdinPlus
 			Object.Destroy(camGo);
 			Object.Destroy(lightGo);
 			Object.Destroy(fillGo);
-			foreach (var go in spawned) Object.Destroy(go);
+			foreach(var go in spawned) Object.Destroy(go);
 
 			var sprite = Sprite.Create(tex, new Rect(0, 0, IconSize, IconSize), new Vector2(0.5f, 0.5f), 100f);
-			sprite.name = "bp_icon_" + bp.name;
+			sprite.name = $"bp_icon_{bp.name}";
 			return sprite;
 		}
 
-		private static void StripNetworkingComponents(GameObject go)
+		static void StripNetworkingComponents(GameObject go)
 		{
 			// Remove physics and gameplay components (ZNetView already destroyed above)
-			foreach (var rb in go.GetComponentsInChildren<Rigidbody>(true))
+			foreach(var rb in go.GetComponentsInChildren<Rigidbody>(true))
 				Object.DestroyImmediate(rb);
-			foreach (var col in go.GetComponentsInChildren<Collider>(true))
+			foreach(var col in go.GetComponentsInChildren<Collider>(true))
 				Object.DestroyImmediate(col);
-			foreach (var piece in go.GetComponentsInChildren<Piece>(true))
+			foreach(var piece in go.GetComponentsInChildren<Piece>(true))
 				Object.DestroyImmediate(piece);
-			foreach (var wnt in go.GetComponentsInChildren<WearNTear>(true))
+			foreach(var wnt in go.GetComponentsInChildren<WearNTear>(true))
 				Object.DestroyImmediate(wnt);
 
 			// Also destroy ZDO components that might reference ZNetView
-			foreach (var comp in go.GetComponentsInChildren<Component>(true))
+			foreach(var comp in go.GetComponentsInChildren<Component>(true))
 			{
-				if (comp == null) continue;
+				if(comp == null) continue;
 				var typeName = comp.GetType().Name;
-				if (typeName.Contains("ZDO") || typeName.Contains("ZSync"))
-				{
+				if(typeName.Contains("ZDO") || typeName.Contains("ZSync"))
 					Object.DestroyImmediate(comp);
-				}
 			}
 		}
 	}

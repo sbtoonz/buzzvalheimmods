@@ -10,14 +10,14 @@ namespace OdinPlus
 
 		#region Data
 
-		public Dictionary<string, Quest> MyQuests = new Dictionary<string, Quest>();
-		private Quest WaitQuest = null;
+		public Dictionary<string, Quest> MyQuests = new();
+		Quest WaitQuest = null;
 		public string[] BuzzKeys = new string[0];
 
 		#endregion Data
 		#region CFG
-		private static readonly string[] RefKeys = { "defeated_eikthyr", "defeated_gdking", "defeated_bonemass", "defeated_moder", "defeated_goblinking" };
-		public static readonly int MaxLevel = 3;
+		static readonly string[] RefKeys = { "defeated_eikthyr", "defeated_gdking", "defeated_bonemass", "defeated_moder", "defeated_goblinking" };
+		internal static readonly int MaxLevel = 3;
 		#endregion CFG
 
 		#region In
@@ -34,19 +34,19 @@ namespace OdinPlus
 		#endregion Variable
 
 		#region Main
-		private void Awake()
+		void Awake()
 		{
 			instance = this;
-			MyQuests = new Dictionary<string, Quest>();
+			MyQuests = new();
 			Plugin.RegRPC = (Action)Delegate.Combine(Plugin.RegRPC, (Action)ReigsterRpc);
 			InvokeRepeating(nameof(CheckPlace), 1f, 0.5f);
 		}
-		private void CheckPlace()
+		void CheckPlace()
 		{
 			var lmList = LocationMarker.MarkList;
-			foreach (var item in MyQuests.Keys)
+			foreach(var item in MyQuests.Keys)
 			{
-				if (lmList.TryGetValue(item, out var lm))
+				if(lmList.TryGetValue(item, out var lm))
 				{
 					QuestProcesser.Create(MyQuests[item]).Place(lm);
 					CancelInvoke(nameof(CheckPlace));
@@ -64,7 +64,7 @@ namespace OdinPlus
 		#region Rpc
 		public void ReigsterRpc()
 		{
-			MyQuests = new Dictionary<string, Quest>();
+			MyQuests = new();
 			ZRoutedRpc.instance.Register<string, Vector3>("RPC_CreateQuestSucced", new Action<long, string, Vector3>(RPC_CreateQuestSucced));
 			ZRoutedRpc.instance.Register("RPC_CreateQuestFailed", new Action<long>(RPC_CreateQuestFailed));
 			DBG.blogWarning("QuestManager rpc reged");
@@ -73,7 +73,7 @@ namespace OdinPlus
 		{
 			CancelWaitError();
 			CancelInvoke(nameof(ClearStaleWait));
-			if (WaitQuest == null)
+			if(WaitQuest == null)
 			{
 				DBG.blogWarning("[QuestManager] RPC_CreateQuestSucced but WaitQuest is null (stale response)");
 				return;
@@ -83,14 +83,14 @@ namespace OdinPlus
 			quest.ID = id;
 			quest.m_realPostion = pos;
 			questProcesser.Begin();
-			DBG.blogWarning(string.Format("Client :Create Quest {0} {1} at {2}", id, quest.locName, pos));
+			DBG.blogWarning($"Client :Create Quest {id} {quest.locName} at {pos}");
 		}
 		public void RPC_CreateQuestFailed(long sender)
 		{
 			CancelWaitError();
 			CancelInvoke(nameof(ClearStaleWait));
 			DBG.InfoCT("Quest location not found - try again");
-			if (WaitQuest != null)
+			if(WaitQuest != null)
 				DBG.blogError($"Cannot Place Quest: {WaitQuest.locName} ({WaitQuest.m_type})");
 			WaitQuest = null;
 		}
@@ -104,7 +104,7 @@ namespace OdinPlus
 		}
 		public bool CanCreateQuest()
 		{
-			if (WaitQuest != null)
+			if(WaitQuest != null)
 			{
 				DBG.InfoCT("$op_quest_failed_wait");
 				return false;
@@ -113,8 +113,8 @@ namespace OdinPlus
 		}
 		public void CreateRandomQuest()
 		{
-			QuestType[] a = new QuestType[] { QuestType.Treasure };
-			switch (CheckKey())
+			var a = new QuestType[] { QuestType.Treasure };
+			switch(CheckKey())
 			{
 				case 0:
 					a = new QuestType[] { QuestType.Search, QuestType.Treasure };
@@ -135,8 +135,8 @@ namespace OdinPlus
 					a = new QuestType[] { QuestType.Treasure, QuestType.Dungeon, QuestType.Hunt, QuestType.Search };
 					break;
 			}
-			int l = a.Length;
-			if (1f.RollDice() < 0.1)
+			var l = a.Length;
+			if(1f.RollDice() < 0.1)
 			{
 				CreateQuest(QuestType.Search);
 				return;
@@ -146,7 +146,7 @@ namespace OdinPlus
 		}
 		public Quest CreateQuest(QuestType type)
 		{
-			Vector3 pos = Player.m_localPlayer != null
+			var pos = Player.m_localPlayer != null
 				? Player.m_localPlayer.transform.position
 				: Game.instance.GetPlayerProfile().GetCustomSpawnPoint();
 			return CreateQuest(type, pos);
@@ -154,11 +154,11 @@ namespace OdinPlus
 
 		public Quest CreateQuest(QuestType type, Vector3 pos)
 		{
-			if (MyQuests == null)
+			if(MyQuests == null)
 			{
-				MyQuests = new Dictionary<string, Quest>();
+				MyQuests = new();
 			}
-			WaitQuest = new Quest();
+			WaitQuest = new();
 			WaitQuest.m_type = type;
 			GameKey = CheckKey();
 			WaitQuest.Key = GameKey;
@@ -169,9 +169,9 @@ namespace OdinPlus
 			return WaitQuest;
 		}
 
-		private void ClearStaleWait()
+		void ClearStaleWait()
 		{
-			if (WaitQuest != null)
+			if(WaitQuest != null)
 			{
 				DBG.blogWarning("[QuestManager] Server never responded, clearing stale WaitQuest");
 				WaitQuest = null;
@@ -179,14 +179,14 @@ namespace OdinPlus
 		}
 		public bool GiveUpQuest(int ind)
 		{
-			foreach (var quest in MyQuests.Values)
+			foreach(var quest in MyQuests.Values)
 			{
-				if (quest.m_index == ind)
+				if(quest.m_index == ind)
 				{
 					quest.Giveup();
 					MyQuests.Remove(quest.ID);
 					UpdateQuestList();
-					DBG.blogInfo("Client give up quest" + ind);
+					DBG.blogInfo($"Client give up quest{ind}");
 					return true;
 				}
 			}
@@ -194,9 +194,9 @@ namespace OdinPlus
 		}
 		public Quest GetQuest(string p_id)
 		{
-			foreach (var id in MyQuests.Keys)
+			foreach(var id in MyQuests.Keys)
 			{
-				if (id == p_id)
+				if(id == p_id)
 				{
 					return MyQuests[id];
 				}
@@ -209,31 +209,26 @@ namespace OdinPlus
 		#region Tool
 		public int CheckKey()
 		{
-			int result = 0;
+			var result = 0;
 			var keys = ZoneSystem.instance.GetGlobalKeys();
-			foreach (var item in RefKeys)
+			foreach(var item in RefKeys)
 			{
-				if (keys.Contains(item)) { result += 1; }
+				if(keys.Contains(item)) result += 1;
 			}
 			GameKey = result;
 			return result;
 		}
-		public bool HasQuest()
-		{
-			return !(MyQuests.Count == 0);
-		}
+		public bool HasQuest() => !(MyQuests.Count == 0);
+
 		public int Count()
 		{
-			if (MyQuests == null)
-			{
-				return 0;
-			}
+			if(MyQuests == null) return 0;
 			return MyQuests.Count;
 		}
 		public void PrintQuestList()
 		{
-			string n = "";
-			foreach (var quest in MyQuests.Values)
+			var n = "";
+			foreach(var quest in MyQuests.Values)
 			{
 				n += quest.PrintData();
 			}
@@ -241,14 +236,14 @@ namespace OdinPlus
 		}
 		public void UpdateQuestList()
 		{
-			string n = "";
-			foreach (var quest in MyQuests.Values)
+			var n = "";
+			foreach(var quest in MyQuests.Values)
 			{
 				n += quest.PrintData();
 			}
 			Tweakers.addHints(n);
 		}
-		private void ShowWaitError()
+		void ShowWaitError()
 		{
 			DBG.InfoCT("There maybe something wrong with the server,please try again later");
 		}
@@ -261,11 +256,11 @@ namespace OdinPlus
 		#region SaveLoad
 		public void Save()
 		{
-			OdinData.Data.Quests = new List<Quest>(MyQuests.Values);
+			OdinData.Data.Quests = new(MyQuests.Values);
 		}
 		public void Load()
 		{
-			foreach (var quest in OdinData.Data.Quests)
+			foreach(var quest in OdinData.Data.Quests)
 			{
 				MyQuests.Add(quest.ID, quest);
 			}

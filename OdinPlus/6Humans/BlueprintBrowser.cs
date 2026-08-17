@@ -12,20 +12,20 @@ namespace OdinPlus
 	/// </summary>
 	public class BlueprintBrowser : MonoBehaviour, TextReceiver
 	{
-		private static BlueprintBrowser _instance;
+		static BlueprintBrowser _instance;
 
 		public static bool IsVisible => _instance != null && _instance._root != null && _instance._root.activeSelf;
 		public static string ArmedBlueprintName { get; private set; }
 
-		private GameObject _canvas; // Canvas root - always stays active
-		private GameObject _root;   // Window - what we show/hide
-		private RectTransform _iconListRoot;
-		private GameObject _iconTemplate;
-		private GameObject _blueprintsTab;
-		private GameObject _createTab;
-		private readonly List<GameObject> _icons = new List<GameObject>();
-		private bool _built;
-		private bool _showingCreate = false;
+		GameObject _canvas; // Canvas root - always stays active
+		GameObject _root;   // Window - what we show/hide
+		RectTransform _iconListRoot;
+		GameObject _iconTemplate;
+		GameObject _blueprintsTab;
+		GameObject _createTab;
+		readonly List<GameObject> _icons = new();
+		bool _built;
+		bool _showingCreate;
 
 		public static void Toggle()
 		{
@@ -35,7 +35,7 @@ namespace OdinPlus
 
 		public static void Hide()
 		{
-			if (_instance != null) _instance.HideInternal();
+			if(_instance != null) _instance.HideInternal();
 		}
 
 		public static void Init()
@@ -43,20 +43,20 @@ namespace OdinPlus
 			EnsureInstance();
 		}
 
-		private static void EnsureInstance()
+		static void EnsureInstance()
 		{
-			if (_instance != null) return;
+			if(_instance != null) return;
 			var go = new GameObject("OdinPlusBlueprintBrowser");
 			DontDestroyOnLoad(go);
 			_instance = go.AddComponent<BlueprintBrowser>();
 		}
 
-		private void Update()
+		void Update()
 		{
-			bool blueprintToolActive = false;
-			if (Player.m_localPlayer != null && Player.m_localPlayer.InPlaceMode())
+			var blueprintToolActive = false;
+			if(Player.m_localPlayer != null && Player.m_localPlayer.InPlaceMode())
 			{
-				Player.m_localPlayer.GetBuildSelection(out _, out _, out _, out _, out PieceTable currentTable);
+				Player.m_localPlayer.GetBuildSelection(out _, out _, out _, out _, out var currentTable);
 				blueprintToolActive = currentTable == OdinItem.BlueprintToolPieceTable;
 			}
 
@@ -64,41 +64,39 @@ namespace OdinPlus
 			BuildHudSuppressor.BlueprintToolActive = blueprintToolActive;
 
 			// Disable vanilla BuildHud children when blueprint tool active
-			if (blueprintToolActive && Hud.instance != null && Hud.instance.m_buildHud != null)
+			if(blueprintToolActive && Hud.instance != null && Hud.instance.m_buildHud != null)
 			{
 				var bh = Hud.instance.m_buildHud.transform;
-				for (int i = 0; i < bh.childCount; i++)
+				for(int i = 0; i < bh.childCount; i++)
 				{
 					var child = bh.GetChild(i);
-					if (child.name == "BlueprintBrowserGUI") continue;
-					if (child.gameObject.activeSelf)
+					if(child.name == "BlueprintBrowserGUI") continue;
+					if(child.gameObject.activeSelf)
 						child.gameObject.SetActive(false);
 				}
 			}
 
-			if (!_built || _root == null || !_root.activeSelf) return;
+			if(!_built || _root == null || !_root.activeSelf) return;
 
-			if (!blueprintToolActive)
-			{
+			if(!blueprintToolActive)
 				HideInternal();
-			}
 		}
 
-		private void ToggleInternal()
+		void ToggleInternal()
 		{
-			if (!_built && !TryBuildFromAssetBundle())
+			if(!_built && !TryBuildFromAssetBundle())
 			{
 				DBG.blogWarning("[BlueprintBrowser] Failed to build UI from AssetBundle");
 				return;
 			}
 
-			if (_root.activeSelf) HideInternal();
+			if(_root.activeSelf) HideInternal();
 			else ShowInternal();
 		}
 
-		private void ShowInternal()
+		void ShowInternal()
 		{
-			if (_canvas != null && !_canvas.activeSelf)
+			if(_canvas != null && !_canvas.activeSelf)
 				_canvas.SetActive(true);
 
 			RefreshList();
@@ -106,37 +104,37 @@ namespace OdinPlus
 
 			// Disable ValheimRadial (blocks clicks)
 			var radial = GameObject.Find("ValheimRadial");
-			if (radial != null) radial.SetActive(false);
+			if(radial != null) radial.SetActive(false);
 		}
 
-		private void HideInternal()
+		void HideInternal()
 		{
-			if (_root != null) _root.SetActive(false);
+			if(_root != null) _root.SetActive(false);
 
 			// Re-enable all vanilla BuildHud children
-			if (Hud.instance != null && Hud.instance.m_buildHud != null)
+			if(Hud.instance != null && Hud.instance.m_buildHud != null)
 			{
 				var bh = Hud.instance.m_buildHud.transform;
-				for (int i = 0; i < bh.childCount; i++)
+				for(int i = 0; i < bh.childCount; i++)
 				{
 					var child = bh.GetChild(i);
-					if (child.name == "BlueprintBrowserGUI") continue;
-					if (!child.gameObject.activeSelf)
+					if(child.name == "BlueprintBrowserGUI") continue;
+					if(!child.gameObject.activeSelf)
 						child.gameObject.SetActive(true);
 				}
 			}
 
 			// Re-enable ValheimRadial
 			var radial = GameObject.Find("ValheimRadial");
-			if (radial != null) radial.SetActive(true);
+			if(radial != null) radial.SetActive(true);
 		}
 
 		/// <summary>
 		/// Instantiate UI from AssetBundle prefab (PlanBuild pattern)
 		/// </summary>
-		private bool TryBuildFromAssetBundle()
+		bool TryBuildFromAssetBundle()
 		{
-			if (BlueprintBrowserAssets.BlueprintBrowserPrefab == null)
+			if(BlueprintBrowserAssets.BlueprintBrowserPrefab == null)
 			{
 				DBG.blogError("[BlueprintBrowser] BlueprintBrowserGUI prefab not loaded");
 				return false;
@@ -147,25 +145,19 @@ namespace OdinPlus
 			prefabInstance.name = "BlueprintBrowserGUI";
 
 			// Parent to BuildHud (our suppressor will keep OTHER children disabled)
-			if (Hud.instance != null && Hud.instance.m_buildHud != null)
-			{
+			if(Hud.instance != null && Hud.instance.m_buildHud != null)
 				prefabInstance.transform.SetParent(Hud.instance.m_buildHud.transform, false);
-			}
 			else
-			{
 				DontDestroyOnLoad(prefabInstance);
-			}
 
 			// Setup Canvas
 			var canvas = prefabInstance.GetComponent<Canvas>();
-			if (canvas != null)
-			{
+			if(canvas != null)
 				canvas.sortingOrder = 100; // Above other elements
-			}
 
 			// Find the Window child (our main panel)
 			var window = prefabInstance.transform.Find("Window");
-			if (window == null)
+			if(window == null)
 			{
 				DBG.blogError("[BlueprintBrowser] Window not found in prefab");
 				Destroy(prefabInstance);
@@ -185,36 +177,34 @@ namespace OdinPlus
 
 			// Fix Window background - make it transparent or it renders as black circle
 			var windowImg = window.GetComponent<Image>();
-			if (windowImg != null && windowImg.sprite == null)
-			{
+			if(windowImg != null && windowImg.sprite == null)
 				windowImg.color = new Color(0.2f, 0.15f, 0.1f, 0.95f); // Semi-transparent brown
-			}
 
 			// Apply Valheim materials (PlanBuild pattern - makes it look native!)
 			ApplyValheimMaterials(window);
 
 			// Find tabs
 			var tabs = window.Find("Tabs");
-			if (tabs != null)
+			if(tabs != null)
 			{
 				_blueprintsTab = tabs.Find("BlueprintsTab")?.gameObject;
 				_createTab = tabs.Find("CreateTab")?.gameObject;
 
 				// Wire up button listeners
-				if (_blueprintsTab != null)
+				if(_blueprintsTab != null)
 				{
 					var btn = _blueprintsTab.GetComponent<Button>();
-					if (btn != null)
+					if(btn != null)
 					{
 						btn.onClick.RemoveAllListeners();
 						btn.onClick.AddListener(ShowBlueprintsTab);
 					}
 				}
 
-				if (_createTab != null)
+				if(_createTab != null)
 				{
 					var btn = _createTab.GetComponent<Button>();
-					if (btn != null)
+					if(btn != null)
 					{
 						btn.onClick.RemoveAllListeners();
 						btn.onClick.AddListener(ShowCreateTab);
@@ -224,16 +214,16 @@ namespace OdinPlus
 
 			// Find content/viewport/icon list (v2 prefab structure)
 			var content = window.Find("Content");
-			if (content != null)
+			if(content != null)
 			{
 				var viewport = content.Find("Viewport");
-				if (viewport != null)
+				if(viewport != null)
 				{
 					_iconListRoot = viewport.Find("IconList") as RectTransform;
 
 					// Add ScrollRect for scrolling support (handles large blueprint counts)
 					var scrollRect = viewport.GetComponent<ScrollRect>();
-					if (scrollRect == null)
+					if(scrollRect == null)
 					{
 						scrollRect = viewport.gameObject.AddComponent<ScrollRect>();
 						scrollRect.content = _iconListRoot;
@@ -249,7 +239,7 @@ namespace OdinPlus
 
 					// Add Mask to viewport for proper clipping
 					var mask = viewport.GetComponent<Mask>();
-					if (mask == null)
+					if(mask == null)
 					{
 						mask = viewport.gameObject.AddComponent<Mask>();
 						mask.showMaskGraphic = false;
@@ -257,7 +247,7 @@ namespace OdinPlus
 				}
 			}
 
-			if (_iconListRoot == null)
+			if(_iconListRoot == null)
 			{
 				DBG.blogError("[BlueprintBrowser] IconList not found at Content/Viewport/IconList");
 				_iconListRoot = content as RectTransform; // Fallback to content itself
@@ -268,7 +258,7 @@ namespace OdinPlus
 
 				// Make icons 3x bigger (128 → 384)
 				var grid = _iconListRoot.GetComponent<GridLayoutGroup>();
-				if (grid != null)
+				if(grid != null)
 				{
 					grid.cellSize = new Vector2(384f, 384f);
 					grid.spacing = new Vector2(10f, 10f);
@@ -277,7 +267,7 @@ namespace OdinPlus
 
 				// Find and store the IconTemplate
 				var template = _iconListRoot.Find("IconTemplate");
-				if (template != null)
+				if(template != null)
 				{
 					_iconTemplate = template.gameObject;
 					DBG.blogInfo($"[BlueprintBrowser] Found IconTemplate in prefab, active: {template.gameObject.activeSelf}, childCount: {template.childCount}");
@@ -285,10 +275,8 @@ namespace OdinPlus
 				else
 				{
 					DBG.blogError("[BlueprintBrowser] IconTemplate NOT found in IconList - listing children:");
-					for (int i = 0; i < _iconListRoot.childCount; i++)
-					{
+					for(int i = 0; i < _iconListRoot.childCount; i++)
 						DBG.blogError($"  Child {i}: {_iconListRoot.GetChild(i).name}");
-					}
 				}
 			}
 
@@ -299,43 +287,39 @@ namespace OdinPlus
 			return true;
 		}
 
-		private void ShowBlueprintsTab()
+		void ShowBlueprintsTab()
 		{
 			_showingCreate = false;
 			RefreshList();
 		}
 
-		private void ShowCreateTab()
+		void ShowCreateTab()
 		{
 			_showingCreate = true;
 			BlueprintPlacer.Clear();
 			RefreshList();
 		}
 
-		private void RefreshList()
+		void RefreshList()
 		{
-			foreach (var icon in _icons) Destroy(icon);
+			foreach(var icon in _icons) Destroy(icon);
 			_icons.Clear();
 
-			if (_iconListRoot == null) return;
+			if(_iconListRoot == null) return;
 
-			if (_showingCreate)
-			{
+			if(_showingCreate)
 				ShowCreateMode();
-			}
 			else
-			{
 				ShowBlueprintsList();
-			}
 		}
 
-		private void ShowBlueprintsList()
+		void ShowBlueprintsList()
 		{
 			var blueprints = BlueprintConfig.GetAllBlueprints();
 			DBG.blogInfo($"[BlueprintBrowser] Showing {blueprints.Count} blueprints");
 
 			// Use IconTemplate from prefab
-			if (_iconTemplate == null)
+			if(_iconTemplate == null)
 			{
 				DBG.blogError("[BlueprintBrowser] IconTemplate not found in prefab - cannot show icons");
 				return;
@@ -343,7 +327,7 @@ namespace OdinPlus
 
 			DBG.blogInfo($"[BlueprintBrowser] Using IconTemplate, creating {blueprints.Count} icons");
 
-			for (int i = 0; i < blueprints.Count; i++)
+			for(int i = 0; i < blueprints.Count; i++)
 			{
 				var bp = blueprints[i];
 
@@ -354,15 +338,13 @@ namespace OdinPlus
 
 				// Set icon sprite
 				var iconImg = iconGo.transform.Find("Icon")?.GetComponent<Image>();
-				if (iconImg != null)
+				if(iconImg != null)
 				{
 					var sprite = BlueprintIconRenderer.GetIcon(bp);
 					iconImg.sprite = sprite;
 
-					if (iconImg.rectTransform != null)
-					{
+					if(iconImg.rectTransform != null)
 						DBG.blogInfo($"[BlueprintBrowser] Icon {i}: {bp.name}, sprite={(sprite != null ? sprite.name : "NULL")}, rect={iconImg.rectTransform.rect}, active={iconImg.gameObject.activeSelf}");
-					}
 				}
 				else
 				{
@@ -370,9 +352,9 @@ namespace OdinPlus
 				}
 
 				// Wire up click handler
-				string capturedName = bp.name;
+				var capturedName = bp.name;
 				var btn = iconGo.GetComponent<Button>();
-				if (btn != null)
+				if(btn != null)
 				{
 					btn.onClick.RemoveAllListeners();
 					btn.onClick.AddListener(() => OnBlueprintClicked(capturedName));
@@ -382,11 +364,11 @@ namespace OdinPlus
 			}
 		}
 
-		private void ShowCreateMode()
+		void ShowCreateMode()
 		{
 			DBG.blogInfo("[BlueprintBrowser] Showing Create mode");
 
-			if (Hud.instance == null || Hud.instance.m_pieceIconPrefab == null) return;
+			if(Hud.instance == null || Hud.instance.m_pieceIconPrefab == null) return;
 
 			// Create button
 			var buttonGo = Instantiate(Hud.instance.m_pieceIconPrefab, _iconListRoot);
@@ -394,7 +376,7 @@ namespace OdinPlus
 			// GridLayoutGroup handles positioning
 
 			var icon = buttonGo.transform.Find("icon")?.GetComponent<Image>();
-			if (icon != null)
+			if(icon != null)
 			{
 				icon.enabled = true;
 				icon.sprite = OdinPlus.CoinsIcon;
@@ -403,13 +385,13 @@ namespace OdinPlus
 			}
 
 			var tooltip = buttonGo.GetComponent<UITooltip>();
-			if (tooltip != null) tooltip.m_text = "Create Blueprint\n\nClick to start visual selection";
+			if(tooltip != null) tooltip.m_text = "Create Blueprint\n\nClick to start visual selection";
 
 			buttonGo.transform.Find("selected")?.gameObject.SetActive(false);
 			buttonGo.transform.Find("upgrade")?.gameObject.SetActive(false);
 
 			var btn = buttonGo.GetComponent<Button>();
-			if (btn != null)
+			if(btn != null)
 			{
 				btn.onClick.RemoveAllListeners();
 				btn.onClick.AddListener(StartVisualSelection);
@@ -418,9 +400,9 @@ namespace OdinPlus
 			_icons.Add(buttonGo);
 		}
 
-		private void StartVisualSelection()
+		void StartVisualSelection()
 		{
-			if (Player.m_localPlayer == null)
+			if(Player.m_localPlayer == null)
 			{
 				DBG.blogWarning("[BlueprintBrowser] No local player");
 				return;
@@ -432,18 +414,15 @@ namespace OdinPlus
 		}
 
 		// TextReceiver implementation
-		public string GetText()
-		{
-			return "";
-		}
+		public string GetText() => "";
 
 		public void SetText(string text)
 		{
 			DBG.blogInfo($"[BlueprintBrowser] SetText called with: '{text}'");
-			if (string.IsNullOrWhiteSpace(text))
+			if(string.IsNullOrWhiteSpace(text))
 			{
 				DBG.blogWarning("[BlueprintBrowser] Blueprint name is empty");
-				if (Player.m_localPlayer != null)
+				if(Player.m_localPlayer != null)
 					Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Blueprint name cannot be empty");
 				return;
 			}
@@ -454,33 +433,33 @@ namespace OdinPlus
 			HideInternal();
 		}
 
-		private static string CostSummary(Blueprint bp)
+		static string CostSummary(Blueprint bp)
 		{
 			var parts = new List<string>();
-			foreach (var cost in bp.resourceCosts)
-				parts.Add(cost.Value + " " + cost.Key);
+			foreach(var cost in bp.resourceCosts)
+				parts.Add($"{cost.Value} {cost.Key}");
 			return parts.Count > 0 ? string.Join(", ", parts) : "free";
 		}
 
-		private void OnBlueprintClicked(string blueprintName)
+		void OnBlueprintClicked(string blueprintName)
 		{
 			ArmedBlueprintName = blueprintName;
 			BlueprintPlacer.SetArmed(blueprintName);
-			if (Player.m_localPlayer != null)
-				Player.m_localPlayer.Message(MessageHud.MessageType.Center, "Blueprint armed: " + blueprintName + " - click to place, right-click to cancel");
+			if(Player.m_localPlayer != null)
+				Player.m_localPlayer.Message(MessageHud.MessageType.Center, $"Blueprint armed: {blueprintName} - click to place, right-click to cancel");
 			HideInternal();
 		}
 
 		/// <summary>
 		/// Apply Valheim's native materials to make UI look like vanilla (PlanBuild pattern)
 		/// </summary>
-		private void ApplyValheimMaterials(Transform window)
+		void ApplyValheimMaterials(Transform window)
 		{
 			var litpanel = FindLitPanelMaterial();
 
 			// Apply litpanel to main window background
 			var windowImg = window.GetComponent<Image>();
-			if (windowImg != null && litpanel != null)
+			if(windowImg != null && litpanel != null)
 			{
 				windowImg.material = litpanel;
 				windowImg.color = new Color(0.7f, 0.6f, 0.5f, 1f); // Warm wood tone
@@ -488,12 +467,12 @@ namespace OdinPlus
 
 			// Apply to tab buttons
 			var tabs = window.Find("Tabs");
-			if (tabs != null)
+			if(tabs != null)
 			{
-				foreach (Transform tab in tabs)
+				foreach(Transform tab in tabs)
 				{
 					var tabImg = tab.GetComponent<Image>();
-					if (tabImg != null && litpanel != null)
+					if(tabImg != null && litpanel != null)
 					{
 						tabImg.material = litpanel;
 						tabImg.color = new Color(0.5f, 0.4f, 0.3f, 1f); // Darker wood for tabs
@@ -503,10 +482,10 @@ namespace OdinPlus
 
 			// Apply to content background
 			var content = window.Find("Content");
-			if (content != null)
+			if(content != null)
 			{
 				var contentImg = content.GetComponent<Image>();
-				if (contentImg != null && litpanel != null)
+				if(contentImg != null && litpanel != null)
 				{
 					contentImg.material = litpanel;
 					contentImg.color = new Color(0.3f, 0.25f, 0.2f, 0.9f); // Very dark for contrast
@@ -519,12 +498,12 @@ namespace OdinPlus
 		/// <summary>
 		/// Find Valheim's litpanel material (same as FactionGui)
 		/// </summary>
-		private static Material FindLitPanelMaterial()
+		static Material FindLitPanelMaterial()
 		{
 			var materials = Resources.FindObjectsOfTypeAll<Material>();
-			foreach (var mat in materials)
+			foreach(var mat in materials)
 			{
-				if (mat != null && mat.name.IndexOf("litpanel", StringComparison.OrdinalIgnoreCase) >= 0)
+				if(mat != null && mat.name.IndexOf("litpanel", StringComparison.OrdinalIgnoreCase) >= 0)
 					return mat;
 			}
 			return null;
@@ -533,29 +512,22 @@ namespace OdinPlus
 		/// <summary>
 		/// Makes a UI element draggable
 		/// </summary>
-		private class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
+		class DragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler
 		{
-			private Vector2 _dragOffset;
-			private RectTransform _rectTransform;
+			Vector2 _dragOffset;
+			RectTransform _rectTransform;
 
-			private void Awake()
-			{
-				_rectTransform = GetComponent<RectTransform>();
-			}
+			void Awake() => _rectTransform = GetComponent<RectTransform>();
 
-			public void OnBeginDrag(PointerEventData eventData)
-			{
+			public void OnBeginDrag(PointerEventData eventData) =>
 				RectTransformUtility.ScreenPointToLocalPointInRectangle(
 					_rectTransform, eventData.position, eventData.pressEventCamera, out _dragOffset);
-			}
 
 			public void OnDrag(PointerEventData eventData)
 			{
-				if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-					_rectTransform.parent as RectTransform, eventData.position, eventData.pressEventCamera, out Vector2 localPos))
-				{
+				if(RectTransformUtility.ScreenPointToLocalPointInRectangle(
+					_rectTransform.parent as RectTransform, eventData.position, eventData.pressEventCamera, out var localPos))
 					_rectTransform.localPosition = localPos - _dragOffset;
-				}
 			}
 		}
 	}

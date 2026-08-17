@@ -2,7 +2,6 @@ using System;
 using UnityEngine;
 namespace OdinPlus
 {
-
 	public class DungeonQuestProcesser : QuestProcesser
 	{
 		public DungeonQuestProcesser(Quest inq)
@@ -12,9 +11,8 @@ namespace OdinPlus
 		public override void Place(LocationMarker lm)
 		{
 			var cinfo = lm.GetCtnInfo();
-			LegacyChest.Place(cinfo.Pos, cinfo.Rot, 3,  quest.ID,quest.m_ownerName, quest.Key, false);
+			LegacyChest.Place(cinfo.Pos, cinfo.Rot, 3, quest.ID, quest.m_ownerName, quest.Key, false);
 			base.Place(lm);
 		}
-
 	}
 }

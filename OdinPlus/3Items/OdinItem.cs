@@ -9,15 +9,6 @@ namespace OdinPlus
 		private static GameObject MeadTasty;
 		private static GameObject TrophyGoblinShaman;
 		private static GameObject Hammer;
-		public static Dictionary<string, Sprite> PetItemList = new Dictionary<string, Sprite>{
-			{"ScrollTroll", OdinPlus.TrollHeadIcon},
-			{"ScrollWolf", OdinPlus.WolfHeadIcon},
-			{"ScrollFenring", OdinPlus.FenringHeadIcon},
-			{"ScrollBrute", OdinPlus.BruteHeadIcon},
-			{"ScrollDverger", OdinPlus.DvergerHeadIcon}
-			};
-		// Companion empty PieceTable for BlueprintTool - Hud.TogglePieceSelection is patched (Plugin.cs)
-		// to recognize this exact instance and open the Blueprint Browser instead of the vanilla window.
 		public static PieceTable BlueprintToolPieceTable;
 			public static Dictionary<string, GameObject> ObjectList = new Dictionary<string, GameObject>();
 		
@@ -36,7 +27,6 @@ namespace OdinPlus
 			Hammer = objectDB.GetItemPrefab("Hammer");
 
 			InitLegacy();
-			InitPetItem();
 			InitBlueprintTool();
 
 			OdinPlus.OdinPreRegister(ObjectList, nameof(ObjectList));
@@ -66,30 +56,6 @@ namespace OdinPlus
 		#endregion Legacy
 
 		#region PetItems
-		private void InitPetItem()
-		{
-			foreach (var pet in PetItemList)
-			{
-				CreatePetItemPrefab(pet.Key, pet.Value);
-			}
-		}
-		private void CreatePetItemPrefab(string name, Sprite icon)
-		{
-			GameObject go = Instantiate(MeadTasty, Root.transform);
-			go.name = name;
-
-			var id = go.GetComponent<ItemDrop>().m_itemData.m_shared;
-			id.m_name = "$op_" + name + "_name";
-			id.m_icons[0] = icon;
-			id.m_description = "$op_" + name + "_desc";
-			id.m_consumeStatusEffect = OdinSE.SElist[name];
-			id.m_itemType = ItemDrop.ItemData.ItemType.Consumable;
-
-			go.GetComponent<ItemDrop>().m_itemData.m_quality = 4;
-			id.m_maxQuality = 5;
-
-			ObjectList.Add(name, go);
-		}
 		#endregion PetItems
 
 		#region BlueprintTool

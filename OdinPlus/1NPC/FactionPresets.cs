@@ -12,12 +12,12 @@ namespace OdinPlus
 		{
 			return new FactionConfig
 			{
-				Factions = new Dictionary<string, FactionDef>
+				Factions = new()
 				{
-					{ "Nords", new FactionDef { Allies = new List<string> { "Merchants" }, Enemies = new List<string> { "Raiders", "Beasts" } } },
-					{ "Raiders", new FactionDef { Allies = new List<string> { "Beasts" }, Enemies = new List<string> { "Nords", "Merchants" } } },
-					{ "Merchants", new FactionDef { Allies = new List<string> { "Nords" }, Enemies = new List<string> { "Raiders" } } },
-					{ "Beasts", new FactionDef { Allies = new List<string> { "Raiders" }, Enemies = new List<string> { "Nords" } } }
+					{ "Nords", new() { Allies = new() { "Merchants" }, Enemies = new() { "Raiders", "Beasts" } } },
+					{ "Raiders", new() { Allies = new() { "Beasts" }, Enemies = new() { "Nords", "Merchants" } } },
+					{ "Merchants", new() { Allies = new() { "Nords" }, Enemies = new() { "Raiders" } } },
+					{ "Beasts", new() { Allies = new() { "Raiders" }, Enemies = new() { "Nords" } } }
 				}
 			};
 		}
@@ -26,12 +26,12 @@ namespace OdinPlus
 		{
 			return new FactionConfig
 			{
-				Factions = new Dictionary<string, FactionDef>
+				Factions = new()
 				{
-					{ "RedTeam", new FactionDef { Allies = new List<string>(), Enemies = new List<string> { "BlueTeam", "GreenTeam", "YellowTeam" } } },
-					{ "BlueTeam", new FactionDef { Allies = new List<string>(), Enemies = new List<string> { "RedTeam", "GreenTeam", "YellowTeam" } } },
-					{ "GreenTeam", new FactionDef { Allies = new List<string>(), Enemies = new List<string> { "RedTeam", "BlueTeam", "YellowTeam" } } },
-					{ "YellowTeam", new FactionDef { Allies = new List<string>(), Enemies = new List<string> { "RedTeam", "BlueTeam", "GreenTeam" } } }
+					{ "RedTeam", new() { Allies = new(), Enemies = new() { "BlueTeam", "GreenTeam", "YellowTeam" } } },
+					{ "BlueTeam", new() { Allies = new(), Enemies = new() { "RedTeam", "GreenTeam", "YellowTeam" } } },
+					{ "GreenTeam", new() { Allies = new(), Enemies = new() { "RedTeam", "BlueTeam", "YellowTeam" } } },
+					{ "YellowTeam", new() { Allies = new(), Enemies = new() { "RedTeam", "BlueTeam", "GreenTeam" } } }
 				}
 			};
 		}
@@ -40,12 +40,12 @@ namespace OdinPlus
 		{
 			return new FactionConfig
 			{
-				Factions = new Dictionary<string, FactionDef>
+				Factions = new()
 				{
-					{ "RedTeam", new FactionDef { Allies = new List<string> { "GreenTeam" }, Enemies = new List<string> { "BlueTeam", "YellowTeam" } } },
-					{ "BlueTeam", new FactionDef { Allies = new List<string> { "YellowTeam" }, Enemies = new List<string> { "RedTeam", "GreenTeam" } } },
-					{ "GreenTeam", new FactionDef { Allies = new List<string> { "RedTeam" }, Enemies = new List<string> { "BlueTeam", "YellowTeam" } } },
-					{ "YellowTeam", new FactionDef { Allies = new List<string> { "BlueTeam" }, Enemies = new List<string> { "RedTeam", "GreenTeam" } } }
+					{ "RedTeam", new() { Allies = new() { "GreenTeam" }, Enemies = new() { "BlueTeam", "YellowTeam" } } },
+					{ "BlueTeam", new() { Allies = new() { "YellowTeam" }, Enemies = new() { "RedTeam", "GreenTeam" } } },
+					{ "GreenTeam", new() { Allies = new() { "RedTeam" }, Enemies = new() { "BlueTeam", "YellowTeam" } } },
+					{ "YellowTeam", new() { Allies = new() { "BlueTeam" }, Enemies = new() { "RedTeam", "GreenTeam" } } }
 				}
 			};
 		}
@@ -54,13 +54,13 @@ namespace OdinPlus
 		{
 			return new FactionConfig
 			{
-				Factions = new Dictionary<string, FactionDef>
+				Factions = new()
 				{
-					{ "Kingdom", new FactionDef { Allies = new List<string> { "Villagers", "Traders" }, Enemies = new List<string> { "Bandits", "Monsters" } } },
-					{ "Villagers", new FactionDef { Allies = new List<string> { "Kingdom", "Traders" }, Enemies = new List<string> { "Bandits", "Monsters" } } },
-					{ "Traders", new FactionDef { Allies = new List<string> { "Kingdom", "Villagers" }, Enemies = new List<string> { "Bandits" } } },
-					{ "Bandits", new FactionDef { Allies = new List<string> { "Monsters" }, Enemies = new List<string> { "Kingdom", "Villagers", "Traders" } } },
-					{ "Monsters", new FactionDef { Allies = new List<string> { "Bandits" }, Enemies = new List<string> { "Kingdom", "Villagers" } } }
+					{ "Kingdom", new() { Allies = new() { "Villagers", "Traders" }, Enemies = new() { "Bandits", "Monsters" } } },
+					{ "Villagers", new() { Allies = new() { "Kingdom", "Traders" }, Enemies = new() { "Bandits", "Monsters" } } },
+					{ "Traders", new() { Allies = new() { "Kingdom", "Villagers" }, Enemies = new() { "Bandits" } } },
+					{ "Bandits", new() { Allies = new() { "Monsters" }, Enemies = new() { "Kingdom", "Villagers", "Traders" } } },
+					{ "Monsters", new() { Allies = new() { "Bandits" }, Enemies = new() { "Kingdom", "Villagers" } } }
 				}
 			};
 		}
@@ -69,11 +69,11 @@ namespace OdinPlus
 		{
 			return new FactionConfig
 			{
-				Factions = new Dictionary<string, FactionDef>
+				Factions = new()
 				{
-					{ "Traders", new FactionDef { Allies = new List<string>(), Enemies = new List<string>() } },
-					{ "Warriors", new FactionDef { Allies = new List<string>(), Enemies = new List<string> { "Invaders" } } },
-					{ "Invaders", new FactionDef { Allies = new List<string>(), Enemies = new List<string> { "Warriors" } } }
+					{ "Traders", new() { Allies = new(), Enemies = new() } },
+					{ "Warriors", new() { Allies = new(), Enemies = new() { "Invaders" } } },
+					{ "Invaders", new() { Allies = new(), Enemies = new() { "Warriors" } } }
 				}
 			};
 		}

@@ -29,21 +29,30 @@ namespace OdinPlus
 				if (Plugin.OdinPosition == Vector3.zero)
 				{
 					ZoneSystem.LocationInstance temp;
-					ZoneSystem.instance.FindClosestLocation("StartTemple", Vector3.zero, out temp);
-					OdinPostion = temp.m_position + new Vector3(-6, 0, -8);
-					if (OdinPostion == Vector3.zero)
+					bool found = ZoneSystem.instance.FindClosestLocation("StartTemple", Vector3.zero, out temp);
+					if (found && temp.m_position != Vector3.zero)
 					{
-						OdinPostion += Vector3.forward * 0.0001f;
+						OdinPostion = temp.m_position + new Vector3(-6, 0, -8);
+						DBG.blogInfo($"[LocationManager] Found StartTemple at {temp.m_position}, OdinCamp at {OdinPostion}");
+					}
+					else
+					{
+						DBG.blogWarning($"[LocationManager] StartTemple not found (found={found}), locationInstances count={ZoneSystem.instance.m_locationInstances.Count}");
+						OdinPostion = new Vector3(0, 30, 0);
 					}
 				}
 				else
 				{
 					OdinPostion = Plugin.OdinPosition;
+					DBG.blogInfo($"[LocationManager] Using saved OdinPosition: {OdinPostion}");
 				}
 				BlackList = OdinData.Data.BlackList;
 				GetValDictionary();
 			}
-
+			else
+			{
+				DBG.blogInfo("[LocationManager] Client — waiting for server position via RPC");
+			}
 		}
 		public static void GetValDictionary()
 		{

@@ -29,6 +29,9 @@ namespace OdinPlus
 		// falls back to every blueprint whose own AllowedFactions permits this faction (or any
 		// blueprint at all if that's also empty) - see BuilderNPC.GetEligibleBlueprints.
 		public List<string> AssignedBlueprints { get; set; } = new List<string>();
+		// Cape prefab name for faction identification (e.g. "CapeLinen", "CapeWolf").
+		// NPCs keep their role-specific armor but wear this cape.
+		public string Cape { get; set; } = "";
 	}
 
 	public class GeneralSettings
@@ -163,33 +166,17 @@ namespace OdinPlus
 		// Plugin.RegRPC (see OdinPlus.Awake), same pattern QuestManager/LocationManager already use.
 		public static void RegisterRpc()
 		{
-			ZRoutedRpc.instance.Register<string>("FactionConfigSync", new Action<long, string>(RPC_FactionConfigSync));
 			ZRoutedRpc.instance.Register<string, string, int>("ReputationChange", new Action<long, string, string, int>(RPC_ReputationChange));
 			ZRoutedRpc.instance.Register<string, string, int>("ReputationUpdate", new Action<long, string, string, int>(RPC_ReputationUpdate));
 			ZRoutedRpc.instance.Register<string>("ReputationSync", new Action<long, string>(RPC_ReputationSync));
-			ZRoutedRpc.instance.Register("RequestFactionSync", new Action<long>(RPC_RequestFactionSync));
 		}
 
-		// Broadcast covers the common case (dedicated server boots before players join). A player
-		// joining later requests sync themselves (see RequestSyncFromServer), covering the late-join case.
-		public static void BroadcastSync()
+		public static void SyncToPeer(long peerUID)
 		{
-			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
 			if (!Plugin.CFG_ServerEnforced.Value) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "FactionConfigSync", _cachedYaml);
-		}
-
-		public static void RequestSyncFromServer()
-		{
-			if (ZNet.instance == null || ZNet.instance.IsServer()) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "RequestFactionSync");
-		}
-
-		private static void RPC_RequestFactionSync(long sender)
-		{
-			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
-			if (!Plugin.CFG_ServerEnforced.Value) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "FactionConfigSync", _cachedYaml);
+			var serializer = new SerializerBuilder().Build();
+			string repYaml = serializer.Serialize(_reputation);
+			ZRoutedRpc.instance.InvokeRoutedRPC(peerUID, "ReputationSync", repYaml);
 		}
 
 		public static void LoadConfig(string yamlPath)
@@ -214,17 +201,22 @@ namespace OdinPlus
 				_cachedYaml = yaml;
 				ParseYaml(yaml);
 
+				// ConfigSyncAPI pushes to clients automatically when value changes
 				if (ZNet.instance != null && ZNet.instance.IsServer() && Plugin.CFG_ServerEnforced.Value)
-				{
-					ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "FactionConfigSync", yaml);
-					Plugin.logger.LogInfo($"[FactionManager] Server syncing config to clients (ServerEnforced=true)");
-				}
+					Plugin.SyncedFactionConfig.Value = yaml;
 			}
 			catch (Exception ex)
 			{
 				Plugin.logger.LogError($"[FactionManager] Failed to load config: {ex.Message}");
 				CreateDefaultFactions();
 			}
+		}
+
+		public static void ApplyYaml(string yaml)
+		{
+			_cachedYaml = yaml;
+			ParseYaml(yaml);
+			Plugin.logger.LogInfo("[FactionManager] Client received config from server via ConfigSync");
 		}
 
 		private static void ParseYaml(string yaml)
@@ -258,15 +250,6 @@ namespace OdinPlus
 			{
 				DBG.blogWarning("[FactionManager] Failed to parse faction YAML: " + e.Message);
 			}
-		}
-
-		public static void RPC_FactionConfigSync(long sender, string yaml)
-		{
-			if (ZNet.instance.IsServer()) return; // Server doesn't receive its own broadcasts
-
-			Plugin.logger.LogInfo($"[FactionManager] Client received config from server");
-			_cachedYaml = yaml;
-			ParseYaml(yaml);
 		}
 
 		// Server receives reputation change request from client
@@ -358,10 +341,10 @@ namespace OdinPlus
 		{
 			Factions = new Dictionary<string, FactionDef>
 			{
-				["Neutral"] = new FactionDef { Name = "Neutral" },
-				["RedTeam"] = new FactionDef { Name = "RedTeam", Allies = new List<string> { "GreenTeam" }, Enemies = new List<string> { "BlueTeam" } },
-				["BlueTeam"] = new FactionDef { Name = "BlueTeam", Enemies = new List<string> { "RedTeam" } },
-				["GreenTeam"] = new FactionDef { Name = "GreenTeam" }
+				["Neutral"] = new FactionDef { Name = "Neutral", Cape = "CapeDeerHide" },
+				["RedTeam"] = new FactionDef { Name = "RedTeam", Allies = new List<string> { "GreenTeam" }, Enemies = new List<string> { "BlueTeam" }, Cape = "CapeLinen" },
+				["BlueTeam"] = new FactionDef { Name = "BlueTeam", Enemies = new List<string> { "RedTeam" }, Cape = "CapeWolf" },
+				["GreenTeam"] = new FactionDef { Name = "GreenTeam", Cape = "CapeTrollHide" }
 			};
 			EventValues = new ReputationEvents();
 			NpcConfig = new NpcSettings();

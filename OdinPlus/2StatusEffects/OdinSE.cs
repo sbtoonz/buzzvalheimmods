@@ -90,9 +90,12 @@ namespace OdinPlus
 		{
 			var se = ScriptableObject.CreateInstance<Se_Buzz>();
 			se.name = name;
-			se.m_icon = ResourceAssetManager.OdinMeadsIcons[name];
+			Sprite icon = null;
+			if (ResourceAssetManager.OdinMeadsIcons != null)
+				ResourceAssetManager.OdinMeadsIcons.TryGetValue(name, out icon);
+			se.m_icon = icon ?? OdinPlus.OdinCreditIcon;
 			se.m_name = "$op_" + name + "_name";
-			se.m_tooltip = "$op_" + name + "_tooltip"; ;
+			se.m_tooltip = "$op_" + name + "_tooltip";
 
 			se.m_ttl = 300;
 			se.speedModifier = 1.5f;
@@ -118,9 +121,11 @@ namespace OdinPlus
 			var se = ScriptableObject.CreateInstance<SE_Stats>();
 			se.name = name;
 
-			if (ResourceAssetManager.OdinMeadsName.Contains(name))
+			Sprite meadIcon;
+			if (ResourceAssetManager.OdinMeadsIcons != null &&
+				ResourceAssetManager.OdinMeadsIcons.TryGetValue(name, out meadIcon))
 			{
-				se.m_icon = ResourceAssetManager.OdinMeadsIcons[name];
+				se.m_icon = meadIcon;
 			}
 
 			se.m_name = "$op_" + name + "_name";

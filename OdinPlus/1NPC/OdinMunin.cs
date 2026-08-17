@@ -2,52 +2,65 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+
 namespace OdinPlus
 {
 	class OdinMunin : OdinNPC
 	{
-		private string[] choice = new string[] { "$op_munin_c1", "$op_munin_c2", "$op_munin_c3", "$op_munin_c4" };
-		private int index = 0;
-		private string currentChoice="";
-		private float timer = 0f;
-		private float questCD = 60f;
-		private Animator m_animator;
-		public static OdinMunin instance;
-		private void Awake()
+		#region Fields
+
+		string[] choice = new string[] { "$op_munin_c1", "$op_munin_c2", "$op_munin_c3", "$op_munin_c4" };
+		int index = 0;
+		string currentChoice = "";
+		float timer = 0f;
+		float questCD = 60f;
+		Animator m_animator;
+		internal static OdinMunin instance;
+
+		#endregion Fields
+
+		#region Mono
+
+		void Awake()
 		{
 			instance = this;
-			this.m_name = "$op_munin_name";
-			this.m_talker = this.gameObject;
+			m_name = "$op_munin_name";
+			m_talker = gameObject;
 			currentChoice = choice[index];
-			m_animator = this.GetComponentInChildren<Animator>();
+			m_animator = GetComponentInChildren<Animator>();
 		}
-		private void Start()
+
+		void Start()
 		{
 			gameObject.transform.Rotate(0, -30f, 0);
-			this.m_animator.SetTrigger("teleportin");
-			this.m_animator.SetTrigger("talk");
+			m_animator.SetTrigger("teleportin");
+			m_animator.SetTrigger("talk");
 		}
-		private void Update()
+
+		void Update()
 		{
-			if (timer > 0)
-			{
+			if(timer > 0)
 				timer -= Time.deltaTime;
-			}
 		}
-		private void OnDestroy()
+
+		void OnDestroy()
 		{
 			instance = null;
 		}
+
+		#endregion Mono
+
 		#region Feature
-		private void CreatSideQuest()
+
+		void CreatSideQuest()
 		{
-			if (timer > 0)
+			if(timer > 0)
 			{
-				var n=string.Format("<color=yellow><b>{0}</b></color>",Mathf.CeilToInt(timer));
-				Say("$op_munin_cd "+n);
+				var n = $"<color=yellow><b>{Mathf.CeilToInt(timer)}</b></color>";
+				Say($"$op_munin_cd {n}");
 				return;
 			}
-			if (QuestManager.instance.Count() >= 10)
+			if(QuestManager.instance.Count() >= 10)
 			{
 				Say("$op_munin_questfulll");
 				return;
@@ -56,22 +69,22 @@ namespace OdinPlus
 			Say("$op_munin_wait_hug");
 			timer = questCD;
 		}
-		private void GiveUpQuest()
+
+		void GiveUpQuest()
 		{
-			if (QuestManager.instance.HasQuest())
+			if(QuestManager.instance.HasQuest())
 			{
-				//string n = string.Format("Which Quest you want to give up?", QuestManager.instance.Count());
-				string n = "$op_munin_giveup";
-				n = Localization.instance.Localize(n);
+				var n = Localization.instance.Localize("$op_munin_giveup");
 				TextInput.instance.RequestText(new TR_Giveup(), n, 3);
 				ResetTimer();
 				return;
 			}
 			Say("$op_munin_noquest");
 		}
-		private void ChangeLevel()
+
+		void ChangeLevel()
 		{
-			if (QuestManager.instance.Level == QuestManager.MaxLevel)
+			if(QuestManager.instance.Level == QuestManager.MaxLevel)
 			{
 				QuestManager.instance.Level = 1;
 				return;
@@ -81,14 +94,12 @@ namespace OdinPlus
 
 		#endregion Feature
 
-		#region Val
+		#region Valheim Interface
+
 		public override bool Interact(Humanoid user, bool hold, bool alt)
 		{
-			if (hold)
-			{
-				return false;
-			}
-			switch (index)
+			if(hold) return false;
+			switch(index)
 			{
 				case 0:
 					CreatSideQuest();
@@ -100,7 +111,7 @@ namespace OdinPlus
 					ChangeLevel();
 					break;
 				case 3:
-					if (QuestManager.instance.HasQuest())
+					if(QuestManager.instance.HasQuest())
 					{
 						QuestManager.instance.PrintQuestList();
 						Say("$op_munin_wait_hug");
@@ -111,41 +122,38 @@ namespace OdinPlus
 			}
 			return true;
 		}
+
 		public override void SecondaryInteract(Humanoid user)
 		{
 			index += 1;
-			if (index + 1 > choice.Length)
-			{
+			if(index + 1 > choice.Length)
 				index = 0;
-			}
 			currentChoice = choice[index];
 		}
+
 		public override string GetHoverText()
 		{
-			string n = string.Format("<color=lightblue><b>{0}</b></color>", m_name);
-			n += string.Format("\n<color=lightblue><b>$op_munin_quest_lvl :{0}</b></color>", QuestManager.instance.Level);
-			n += string.Format("\n$op_munin_questnum_b <color=lightblue><b>{0}</b></color> $op_munin_questnum_a", QuestManager.instance.Count());
+			var n = $"<color=lightblue><b>{m_name}</b></color>";
+			n += $"\n<color=lightblue><b>$op_munin_quest_lvl :{QuestManager.instance.Level}</b></color>";
+			n += $"\n$op_munin_questnum_b <color=lightblue><b>{QuestManager.instance.Count()}</b></color> $op_munin_questnum_a";
 			n += "\n[<color=yellow><b>1-8</b></color>]$op_offer";
-			n += "\n[<color=yellow><b>$KEY_Use</b></color>]" + currentChoice;
+			n += $"\n[<color=yellow><b>$KEY_Use</b></color>]{currentChoice}";
 			// Show full keybind (Alt+E, not just E)
 			var modifiers = Plugin.SecondInteractKey.Modifiers;
-			string keyText = modifiers.Any()
+			var keyText = modifiers.Any()
 				? string.Join("+", modifiers) + "+" + Plugin.SecondInteractKey.MainKey
 				: Plugin.SecondInteractKey.MainKey.ToString();
-			n += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", keyText);
+			n += $"\n<color=yellow><b>[{keyText}]</b></color>$op_switch";
 			return Localization.instance.Localize(n);
 		}
-		public override string GetHoverName()
-		{
-			return Localization.instance.Localize(this.m_name);
-		}
+
+		public override string GetHoverName() => Localization.instance.Localize(m_name);
+
 		public override bool UseItem(Humanoid user, ItemDrop.ItemData item)
 		{
-			if (!SearchQuestProcesser.CanOffer(item.m_dropPrefab.name))
-			{
+			if(!SearchQuestProcesser.CanOffer(item.m_dropPrefab.name))
 				return false;
-			}
-			if (SearchQuestProcesser.CanFinish(item.m_dropPrefab.name))
+			if(SearchQuestProcesser.CanFinish(item.m_dropPrefab.name))
 			{
 				Say("$op_munin_takeoffer");
 				return true;
@@ -153,9 +161,11 @@ namespace OdinPlus
 			Say("$op_munin_notenough");
 			return true;
 		}
-		#endregion Val
+
+		#endregion Valheim Interface
 
 		#region Tool
+
 		public static void Reward(int key, int level)
 		{
 			var a = Instantiate(ZNetScene.instance.GetPrefab("OdinLegacy"), instance.transform.position + Vector3.up * 2f + Vector3.forward, Quaternion.identity);
@@ -164,36 +174,35 @@ namespace OdinPlus
 			id.m_quality = level;
 			ResetTimer();
 		}
+
 		public static void ResetTimer()
 		{
-			instance.timer=0f;
+			instance.timer = 0f;
 		}
+
 		#endregion Tool
 
 		#region TextGUI
-		private class TR_Giveup : TextReceiver
+
+		class TR_Giveup : TextReceiver
 		{
-			public string GetText()
-			{
-				return "";
-			}
+			public string GetText() => "";
+
 			public void SetText(string text)
 			{
-				int num;
-				if (int.TryParse(text, out num))
+				if(int.TryParse(text, out var num))
 				{
-					if (!QuestManager.instance.GiveUpQuest(num))
+					if(!QuestManager.instance.GiveUpQuest(num))
 					{
-						DBG.InfoCT("$op_munin_noq " + num);
+						DBG.InfoCT($"$op_munin_noq {num}");
 						return;
 					}
 					return;
 				}
 				DBG.InfoCT("$op_wrong_num");
-				return;
 			}
 		}
-		#endregion TextGUI
 
+		#endregion TextGUI
 	}
 }

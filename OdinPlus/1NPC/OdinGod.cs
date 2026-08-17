@@ -1,67 +1,74 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using System.Reflection;
 using HarmonyLib;
+
 //||X||Sell Value Don't Resolve Here!!!
 namespace OdinPlus
 {
 	public class OdinGod : OdinNPC, Hoverable, Interactable, OdinInteractable
 	{
-		#region Var
-		public static OdinGod m_instance;
-		private List<string> slist = new List<string>();
-		private List<Skills.SkillType> stlist = new List<Skills.SkillType>();
-		private string cskill;
-		private int cskillIndex = 0;
-		#endregion
-		#region util
-		private Vector3 FindSpawnPoint()
+		#region Fields
+
+		internal static OdinGod m_instance;
+		List<string> slist = new();
+		List<Skills.SkillType> stlist = new();
+		string cskill;
+		int cskillIndex = 0;
+
+		#endregion Fields
+
+		#region Utilities
+
+		Vector3 FindSpawnPoint()
 		{
 			var a = UnityEngine.Random.Range(10, 10);
 			var b = UnityEngine.Random.Range(10, 10);
 			var c = ZoneSystem.instance.GetGroundHeight(new Vector3(a, 500, b));
-			ZoneSystem.LocationInstance locationInstance;
-			if (ZoneSystem.instance.FindClosestLocation("StartTemple", Vector3.zero, out locationInstance))
+			if(ZoneSystem.instance.FindClosestLocation("StartTemple", Vector3.zero, out var locationInstance))
 			{
 				var p = locationInstance.m_position + new Vector3(-6, 0.2f, -8);
 				return p;
 			}
-			DBG.blogWarning("Cant Find a point to Spawn Odin use /odin respawn");//notice
+			DBG.blogWarning("Cant Find a point to Spawn Odin use /odin respawn");
 			return new Vector3(a, c, b);
 		}
-		private string randomName()
+
+		string randomName()
 		{
 			UnityEngine.Random.InitState(Mathf.FloorToInt(Time.realtimeSinceStartup));
 			var l = OdinData.ItemSellValue;
-			int i = UnityEngine.Random.Range(0, l.Count - 1);
+			var i = UnityEngine.Random.Range(0, l.Count - 1);
 			return l.ElementAt(i).Key.GetTransName();
 		}
-		public static bool IsInstantiated()
-		{
-			return m_instance == null;
-		}
+
+		public static bool IsInstantiated() => m_instance == null;
+
 		public void RestTerrian()
 		{
 			//Terrain.ResetTerrain(this.transform.position, 10);
 		}
-		#endregion
+
+		#endregion Utilities
+
 		#region Mono
 
-		private void Awake()
+		void Awake()
 		{
 			m_instance = this;
 			Summon();
-			m_head = this.gameObject.transform.Find("visual/Armature/Hips/Spine0/Spine1/Spine2/Head");
+			m_head = gameObject.transform.Find("visual/Armature/Hips/Spine0/Spine1/Spine2/Head");
 			m_name = "$op_god";
-			m_talker = this.gameObject;
+			m_talker = gameObject;
 			InvokeRepeating("requestOidnPosition", 1, 3);
 			DBG.blogInfo("Client start to Calling Request Odin Location");
 		}
-		private void requestOidnPosition()
+
+		void requestOidnPosition()
 		{
-			if (NpcManager.Root.transform.position == Vector3.zero)
+			if(NpcManager.Root.transform.position == Vector3.zero)
 			{
 				LocationManager.GetStartPos();
 				DBG.blogWarning($"[OdinGod] Still waiting for position (polling every 3s)");
@@ -70,38 +77,38 @@ namespace OdinPlus
 			DBG.blogInfo($"[OdinGod] Position received: {NpcManager.Root.transform.position}, canceling repeating invoke");
 			CancelInvoke("requestOidnPosition");
 		}
-		private void Start()
+
+		void Start()
 		{
-			Debug.LogWarning(this.gameObject.transform.parent.rotation);
-			this.gameObject.transform.parent.Rotate(0, 42, 0);
-			Debug.LogWarning(this.gameObject.transform.parent.rotation);
+			Debug.LogWarning(gameObject.transform.parent.rotation);
+			gameObject.transform.parent.Rotate(0, 42, 0);
+			Debug.LogWarning(gameObject.transform.parent.rotation);
 		}
-		private void OnDestroy()
+
+		void OnDestroy()
 		{
-			//RestTerrian();
-			if (m_instance == this)
-			{
+			if(m_instance == this)
 				m_instance = null;
-			}
 		}
-		#endregion
+
+		#endregion Mono
+
 		#region Tool
+
 		public bool Summon()
 		{
-			//this.transform.parent.localPosition = FindSpawnPoint();
 			ReadSkill();
 			return true;
 		}
 
-		#endregion
-		#region valheim
+		#endregion Tool
+
+		#region Valheim Interface
+
 		public override bool Interact(Humanoid user, bool hold, bool alt)
 		{
-			if (hold)
-			{
-				return false;
-			}
-			if (!OdinData.RemoveCredits(Plugin.RaiseCost))
+			if(hold) return false;
+			if(!OdinData.RemoveCredits(Plugin.RaiseCost))
 			{
 				Say("$op_god_nocrd");
 				return false;
@@ -111,26 +118,29 @@ namespace OdinPlus
 			Say("$op_raise");
 			return true;
 		}
+
 		public override void SecondaryInteract(Humanoid user)
 		{
 			SwitchSkill();
 		}
+
 		public override string GetHoverText()
 		{
-			string n = "<color=lightblue><b>ODIN</b></color>";
-			string s = string.Format("\n<color=lightblue><b>$op_crd:{0}</b></color>", OdinData.Credits);
-			string a = string.Format("\n[<color=yellow><b>$KEY_Use</b></color>] $op_use[<color=green><b>{0}</b></color>]", cskill);
-			string b = "\n[<color=yellow><b>1-8</b></color>]$op_offer";
-			b += String.Format("\n<color=yellow><b>[{0}]</b></color>$op_switch", Plugin.SecondInteractKey.MainKey.ToString());
+			var n = "<color=lightblue><b>ODIN</b></color>";
+			var s = $"\n<color=lightblue><b>$op_crd:{OdinData.Credits}</b></color>";
+			var a = $"\n[<color=yellow><b>$KEY_Use</b></color>] $op_use[<color=green><b>{cskill}</b></color>]";
+			var b = "\n[<color=yellow><b>1-8</b></color>]$op_offer";
+			b += $"\n<color=yellow><b>[{Plugin.SecondInteractKey.MainKey}]</b></color>$op_switch";
 			return Localization.instance.Localize(n + s + a + b);
 		}
-		public override bool UseItem(Humanoid user, ItemDrop.ItemData item)//trans
+
+		public override bool UseItem(Humanoid user, ItemDrop.ItemData item)
 		{
 			var name = item.m_dropPrefab.name;
-			int value = 1;
-			if (!OdinData.ItemSellValue.ContainsKey(name))
+			var value = 1;
+			if(!OdinData.ItemSellValue.ContainsKey(name))
 			{
-				Say("$op_god_randomitem " + randomName());
+				Say($"$op_god_randomitem {randomName()}");
 				return false;
 			}
 			value = OdinData.ItemSellValue[name];
@@ -139,17 +149,20 @@ namespace OdinPlus
 			Say("$op_god_takeoffer");
 			return true;
 		}
-		#endregion
-		#region feature
-		private void ReadSkill()
+
+		#endregion Valheim Interface
+
+		#region Feature
+
+		void ReadSkill()
 		{
 			slist.Clear();
 			stlist.Clear();
-			foreach (object obj in Enum.GetValues(typeof(Skills.SkillType)))
+			foreach(object obj in Enum.GetValues(typeof(Skills.SkillType)))
 			{
-				Skills.SkillType skillType = (Skills.SkillType)obj;
+				var skillType = (Skills.SkillType)obj;
 				var s = skillType.ToString();
-				if (s != "None" && s != "FrostMagic" && s != "All" && s != "FireMagic")
+				if(s != "None" && s != "FrostMagic" && s != "All" && s != "FireMagic")
 				{
 					slist.Add(skillType.ToString());
 					stlist.Add(skillType);
@@ -157,16 +170,15 @@ namespace OdinPlus
 			}
 			cskill = slist[cskillIndex];
 		}
+
 		public void SwitchSkill()
 		{
 			cskillIndex += 1;
-			if (cskillIndex + 1 > slist.Count())
-			{
+			if(cskillIndex + 1 > slist.Count())
 				cskillIndex = 0;
-			}
 			cskill = slist[cskillIndex];
 		}
-		#endregion
 
+		#endregion Feature
 	}
 }

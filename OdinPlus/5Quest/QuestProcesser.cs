@@ -7,7 +7,7 @@ namespace OdinPlus
 		protected Quest quest;
 		public static QuestProcesser Create(Quest inq)
 		{
-			switch (inq.m_type)
+			switch(inq.m_type)
 			{
 				case QuestType.Dungeon:
 					return new DungeonQuestProcesser(inq);
@@ -21,10 +21,8 @@ namespace OdinPlus
 					return new QuestProcesser(inq);
 			}
 		}
-		public void SetQuest(Quest inq)
-		{
-			quest = inq;
-		}
+		public void SetQuest(Quest inq) => quest = inq;
+
 		public QuestProcesser(Quest inq)
 		{
 			quest = inq;
@@ -44,14 +42,8 @@ namespace OdinPlus
 			quest.m_ownerName = Player.m_localPlayer.GetPlayerName();
 			quest.Begin();
 		}
-		public virtual void Place(LocationMarker lm)
-		{
-			lm.Used();
-		}
-		public virtual void Finish()
-		{
-			quest.Finish();
-		}
+		public virtual void Place(LocationMarker lm) => lm.Used();
 
+		public virtual void Finish() => quest.Finish();
 	}
 }

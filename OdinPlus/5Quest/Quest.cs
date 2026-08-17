@@ -20,7 +20,7 @@ namespace OdinPlus
 		public bool hasPIN = false;//XXX
 		public Vector3 m_pinPosition = Vector3.zero;
 		public float m_range=30;
-		public List<Quest> m_chain = new List<Quest>();
+		public List<Quest> m_chain = new();
 
 		#endregion Data
 
@@ -42,82 +42,59 @@ namespace OdinPlus
 
 		#region Function
 		//HELP is using extesion better than this?
-		private void SetPin()
+		void SetPin()
 		{
-			if (CheckPinNeed())
-			{
+			if(CheckPinNeed())
 				Minimap.instance.DiscoverLocation(m_pinPosition, Minimap.PinType.Icon3, m_message, false);
-			}
 		}
 		public void SetLocName()
 		{
 			locName = Regex.Replace(locName, @"[\d-]", string.Empty);
 			locName = Regex.Replace(locName, @"[_]", "");
 		}
-		private void SetQuestName()
+		void SetQuestName()
 		{
-			QuestName = locName + " " + m_type.ToString();
+			QuestName = $"{locName} {m_type}";
 		}
-		private void SetPosition()
+		void SetPosition()
 		{
 			m_pinPosition = m_realPostion.GetRandomLocation(m_range);
 		}
 		public void SetRange()
 		{
-			if (m_range==0)
-			{
-				return;
-			}
+			if(m_range==0) return;
 			m_range =  m_range.RollDice((Level+1) * m_range);
 		}
-		private void RemovePin()
+		void RemovePin()
 		{
-			if (CheckPinNeed())
-			{
+			if(CheckPinNeed())
 				Minimap.instance.RemovePin(m_pinPosition, 10);
-			}
 		}
-		public void SendPing()
-		{
-			Chat.instance.SendPing(m_pinPosition);
-		}
-		public QuestType GetQuestType()
-		{
-			return m_type;
-		}
+		public void SendPing() => Chat.instance.SendPing(m_pinPosition);
+
+		public QuestType GetQuestType() => m_type;
+
 		public string PrintData()
 		{
-			string label = String.Format("\n[<color=yellow><b>{0}</b></color>] {1} ({2})", m_index, QuestName ?? locName, m_type);
-			if (!string.IsNullOrEmpty(m_message))
-				label += " - " + m_message.Replace('\n', ' ');
+			var label = $"\n[<color=yellow><b>{m_index}</b></color>] {QuestName ?? locName} ({m_type})";
+			if(!string.IsNullOrEmpty(m_message))
+				label += $" - {m_message.Replace('\n', ' ')}";
 			return label;
 		}
 		public void ShowMessage(string result)
 		{
-			if (m_message == "")
-			{
-				return;
-			}
-			string n = "\n" + " $op_quest_" + result;
+			if(m_message == "") return;
+			var n = $"\n $op_quest_{result}";
 			MessageHud.instance.ShowBiomeFoundMsg(m_message + n, true);
 		}
 		public void ShowMuninMessage(string msg)
 		{
-			if (m_message == "" || msg == null)
-			{
-				return;
-			}
+			if(m_message == "" || msg == null) return;
 			m_message.Replace('\n', ' ');
 			Tweakers.QuestHintHugin(m_message, msg);
 		}
-		public bool CheckPinNeed()
-		{
-			if (m_pinPosition == Vector3.zero)
-			{
-				return false;
-			}
-			return true;
-		}
+		public bool CheckPinNeed() => m_pinPosition != Vector3.zero;
+
 		#endregion Function
 		public void Begin()
 		{
@@ -151,18 +128,18 @@ namespace OdinPlus
 		//clear should change to another method for finish then you don't have to create processer again
 		public void Clear()
 		{
-			string result = "stolen";
-			if (isMeInsideQuestArea() || ZNet.instance.IsLocalInstance())
+			var result = "stolen";
+			if(isMeInsideQuestArea() || ZNet.instance.IsLocalInstance())
 			{
 				result = "clear";
 			}
 			ShowMessage(result);
 		}
-		private bool isMeInsideQuestArea()
+		bool isMeInsideQuestArea()
 		{
-			//OPT move to util                        
-			Vector3 ppos = Player.m_localPlayer.transform.position;
-			Vector2i val = ZoneSystem.GetZone(ppos);
+			//OPT move to util
+			var ppos = Player.m_localPlayer.transform.position;
+			var val = ZoneSystem.GetZone(ppos);
 			return ID.ToV2I() == val;
 		}
 		public void Giveup()

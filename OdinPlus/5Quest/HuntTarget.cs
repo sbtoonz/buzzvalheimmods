@@ -11,24 +11,24 @@ namespace OdinPlus
 	public class HuntTarget : MonoBehaviour
 	{
 		#region var
-		private static readonly AccessTools.FieldRef<CharacterDrop, bool> s_dropsEnabledRef =
+		static readonly AccessTools.FieldRef<CharacterDrop, bool> s_dropsEnabledRef =
 			AccessTools.FieldRefAccess<CharacterDrop, bool>("m_dropsEnabled");
 
-		private ZNetView m_nview;
+		ZNetView m_nview = null!;
 		public string ID = "";
-		public int Level=1;
-		public int Key=1;
+		public int Level = 1;
+		public int Key = 1;
 		public string m_ownerName = "";
 		public bool Placing = false;
-		private Character m_chrct;
-		private Humanoid m_hum;
-		private CharacterDrop m_cDrop;
-		private MonsterAI m_mai;
+		Character m_chrct = null!;
+		Humanoid m_hum = null!;
+		CharacterDrop m_cDrop = null!;
+		MonsterAI m_mai = null!;
 
 		#endregion var
 
 		#region Mono +Death
-		private void Awake()
+		void Awake()
 		{
 			m_nview = gameObject.GetComponent<ZNetView>();
 			m_chrct = gameObject.GetComponent<Character>();
@@ -38,12 +38,11 @@ namespace OdinPlus
 			m_hum = gameObject.GetComponent<Humanoid>();
 
 		}
-		private void Start()
+		void Start()
 		{
 			var zdo = m_nview.GetZDO();
-			if (ID != "")
+			if(ID != "")
 			{
-
 				zdo.Set("TaskID", ID);
 				zdo.Set("HuntLevel", Level);
 				zdo.Set("HuntKey", Key);
@@ -60,37 +59,33 @@ namespace OdinPlus
 			m_mai.SetPatrolPoint();
 			InvokeRepeating(nameof(ValidateQuest), 5f, 5f);
 		}
-		private void OnDestroy()
+		void OnDestroy()
 		{
-			if (m_chrct != null)
+			if(m_chrct != null)
 				m_chrct.m_onDeath = (Action)Delegate.Remove(m_chrct.m_onDeath, new Action(OnDeath));
 		}
-		private void ValidateQuest()
+		void ValidateQuest()
 		{
-			if (ID == "") return;
+			if(ID == "") return;
 			var m_task = QuestManager.instance.GetQuest(ID);
-			if (m_task == null)
+			if(m_task == null)
 			{
-				DBG.blogInfo("Cant find task,Destroy Hunt Target" + ID);
+				DBG.blogInfo($"Cant find task,Destroy Hunt Target{ID}");
 				s_dropsEnabledRef(m_cDrop) = false;
 				m_nview.Destroy();
 			}
 		}
 		public void OnDeath()
 		{
-			if (Player.GetClosestPlayer(transform.position, 100).GetHoverName() == m_ownerName)
+			if(Player.GetClosestPlayer(transform.position, 100).GetHoverName() == m_ownerName)
 			{
 				QuestManager.instance.GetQuest(ID).Finish();
 			}
 			else
 			{
-				if (m_ownerName == "")
+				if(m_ownerName != "")
 				{
-
-				}
-				else
-				{
-					string n = string.Format("Hey you found the chest belong to <color=yellow><b>{0}</b></color>", m_ownerName);//trans
+					var n = $"Hey you found the chest belong to <color=yellow><b>{m_ownerName}</b></color>";//trans
 					DBG.InfoCT(n);
 				}
 			}
@@ -118,7 +113,7 @@ namespace OdinPlus
 			var go = Instantiate(ZNetScene.instance.GetPrefab(name), OdinPlus.PrefabParent.transform);
 			ZNetView.m_forceDisableInit = false;
 			name = Regex.Replace(name, @"[_]", "");
-			go.name = name + "Hunt";
+			go.name = $"{name}Hunt";
 			go.AddComponent<HuntTarget>();
 			go.GetComponent<Humanoid>().m_name += " $op_hunt_target";
 			DestroyImmediate(go.GetComponent<CharacterDrop>());
@@ -128,26 +123,27 @@ namespace OdinPlus
 		}
 		public void CreateDrop()
 		{
-			var d = new CharacterDrop.Drop();
-			d.m_chance = 1;
-			d.m_amountMax = Level + Key;
-			d.m_amountMin = d.m_amountMax;
-			d.m_levelMultiplier = false;
-			d.m_prefab = ZNetScene.instance.GetPrefab("OdinLegacy");
-			m_cDrop.m_drops = new List<CharacterDrop.Drop>();
+			var d = new CharacterDrop.Drop
+			{
+				m_chance = 1,
+				m_amountMax = Level + Key,
+				m_amountMin = Level + Key,
+				m_levelMultiplier = false,
+				m_prefab = ZNetScene.instance.GetPrefab("OdinLegacy")
+			};
+			m_cDrop.m_drops = new();
 			s_dropsEnabledRef(m_cDrop) = true;
 			m_cDrop.m_drops.Add(d);
 		}
-		public static void Place(Vector3 pos, string monster, string id,string _owner, int p_key, int p_lvl)
+		public static void Place(Vector3 pos, string monster, string id, string _owner, int p_key, int p_lvl)
 		{
-			float y = 0;
-			ZoneSystem.instance.FindFloor(pos, out y);
-			pos = new Vector3(pos.x, y + 2, pos.z + 5);
-			var Reward = Instantiate(ZNetScene.instance.GetPrefab(monster + "Hunt"), pos, Quaternion.identity);
+			ZoneSystem.instance.FindFloor(pos, out var y);
+			pos = new(pos.x, y + 2, pos.z + 5);
+			var Reward = Instantiate(ZNetScene.instance.GetPrefab($"{monster}Hunt"), pos, Quaternion.identity);
 			Reward.GetComponent<HuntTarget>().ID = id;
-			Reward.GetComponent<HuntTarget>().m_ownerName=_owner;
+			Reward.GetComponent<HuntTarget>().m_ownerName = _owner;
 			Reward.GetComponent<HuntTarget>().Setup(p_key, p_lvl);
-			DBG.blogWarning("Placed Hunt " + monster + " at : " + Reward.transform.localPosition);
+			DBG.blogWarning($"Placed Hunt {monster} at : {Reward.transform.localPosition}");
 		}
 		#endregion Tool
 

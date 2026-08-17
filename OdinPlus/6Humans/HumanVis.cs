@@ -13,7 +13,7 @@ namespace OdinPlus
 		protected Animator m_ani;
 		public string m_name="";
 
-		private void Awake()
+		void Awake()
 		{
 			m_nview = GetComponent<ZNetView>();
 			m_ani = GetComponentInChildren<Animator>();
@@ -26,8 +26,8 @@ namespace OdinPlus
 		protected virtual void SetName()
 		{
 			var hum = GetComponent<Humanoid>();
-			string n ;
-			if (m_name!="")
+			string n;
+			if(m_name!="")
 			{
 				n=m_name;
 			}
@@ -35,7 +35,7 @@ namespace OdinPlus
 			{
 				n = m_nview.GetZDO().GetString("npcname", "no");
 			}
-			if (n == "no")
+			if(n == "no")
 			{
 				n = NPCnames.GetRandomElement();
 				m_nview.GetZDO().Set("npcname", n);
@@ -45,14 +45,12 @@ namespace OdinPlus
 		}
 		protected virtual void SetupVisual()
 		{
-			int sex = 2.RollDices();
-			if (sex == 0)
-			{
+			var sex = 2.RollDices();
+			if(sex == 0)
 				SetItem("BeardItem", m_beardItem);
-			}
 			SetItem("HairItem", m_hairItem);
-			float skin = 0.5f + 0.8f.RollDices();
-			Color hair = Color.HSVToRGB(0.13f + 0.03f.RollDices(), 1f.RollDices(), 1.3f.RollDices());
+			var skin = 0.5f + 0.8f.RollDices();
+			var hair = Color.HSVToRGB(0.13f + 0.03f.RollDices(), 1f.RollDices(), 1.3f.RollDices());
 			m_nview.GetZDO().Set("ModelIndex", 2.RollDices());
 			m_nview.GetZDO().Set("HairColor", new Vector3(hair.r, hair.g, hair.b));
 			m_nview.GetZDO().Set("SkinColor", new Vector3(skin, skin, skin));

@@ -7,8 +7,8 @@ namespace OdinPlus
 	public class SearchQuestProcesser : QuestProcesser
 	{
 		#region Var
-		private string m_item;
-		private int m_count;
+		string m_item;
+		int m_count;
 		#endregion Var
 
 		#region Main
@@ -18,14 +18,14 @@ namespace OdinPlus
 		}
 		public override void Init()
 		{
-			if (!PickItem())
+			if(!PickItem())
 			{
 				DBG.InfoCT("Clear some search Quest then Come back");
 				//upd Failed process
 				return;
 			}
-			quest.locName = m_count.ToString()+m_item;
-			quest.m_range=0;
+			quest.locName = $"{m_count}{m_item}";
+			quest.m_range = 0;
 			Begin();
 		}
 		public override void Begin()
@@ -36,21 +36,15 @@ namespace OdinPlus
 
 		#endregion Main
 		#region Feature
-		public static bool CanOffer(string item)
-		{
-			if (OdinData.Data.SearchTaskList.ContainsKey(item))
-			{
-				return true;
-			}
-			return false;
-		}
+		public static bool CanOffer(string item) => OdinData.Data.SearchTaskList.ContainsKey(item);
+
 		public static bool CanFinish(string item)
 		{
 			var inv = Player.m_localPlayer.GetInventory();
-			int count = OdinData.Data.SearchTaskList[item];
-			string iname = Tweakers.GetItemData(item).m_shared.m_name;
+			var count = OdinData.Data.SearchTaskList[item];
+			var iname = Tweakers.GetItemData(item).m_shared.m_name;
 			Debug.LogWarning(count);
-			if (inv.CountItems(iname) >= count)
+			if(inv.CountItems(iname) >= count)
 			{
 				inv.RemoveItem(iname, count);
 				var quest = QuestManager.instance.MyQuests[item];
@@ -64,30 +58,26 @@ namespace OdinPlus
 		#endregion Feature
 
 		#region Tool
-		private bool PickItem()
+		bool PickItem()
 		{
 			var m_itemList = QuestRef.LocDic[quest.GetQuestType()];
 			var l1 = new Dictionary<string, int>();
-			foreach (var item in m_itemList[quest.Key])
+			foreach(var item in m_itemList[quest.Key])
 			{
 				var a1 = item.Split(new char[] { ':' });
 				l1.Add(a1[0], int.Parse(a1[1]));
 			}
-			foreach (var item in OdinData.Data.SearchTaskList.Keys)
+			foreach(var item in OdinData.Data.SearchTaskList.Keys)
 			{
-				if (l1.ContainsKey(item))
-				{
+				if(l1.ContainsKey(item))
 					l1.Remove(item);
-				}
 			}
-			if (l1.Count == 0)
-			{
+			if(l1.Count == 0)
 				return false;
-			}
-			int ind = l1.Count.RollDice();
+			var ind = l1.Count.RollDice();
 			m_item = l1.ElementAt(ind).Key;
 			m_count = l1.ElementAt(ind).Value * quest.Level;
-			OdinData.Data.SearchTaskList.Add(m_item,m_count);
+			OdinData.Data.SearchTaskList.Add(m_item, m_count);
 			return true;
 		}
 		#endregion Tool

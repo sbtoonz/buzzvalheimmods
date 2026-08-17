@@ -9,18 +9,18 @@ namespace OdinPlus
 		public string faction; // which faction's builder should claim this
 		public Vector3 origin;
 		public Quaternion rotation;
-		public List<GameObject> ghosts = new List<GameObject>();
+		public List<GameObject> ghosts = new();
 		public BuilderNPC claimedBy;
 
 		public void SpawnGhosts()
 		{
 			ClearGhosts();
-			foreach (var piece in blueprint.pieces)
+			foreach(var piece in blueprint.pieces)
 			{
 				var prefab = ZNetScene.instance.GetPrefab(piece.prefabName);
-				if (prefab == null) continue;
-				Vector3 pos = origin + rotation * piece.localPosition;
-				Quaternion rot = rotation * Quaternion.Euler(piece.rotation);
+				if(prefab == null) continue;
+				var pos = origin + rotation * piece.localPosition;
+				var rot = rotation * Quaternion.Euler(piece.rotation);
 				var ghost = BlueprintGhost.Create(prefab, pos, rot, null);
 				ghosts.Add(ghost);
 			}
@@ -28,15 +28,15 @@ namespace OdinPlus
 
 		public void ClearGhosts()
 		{
-			foreach (var g in ghosts)
-				if (g != null) Object.Destroy(g);
+			foreach(var g in ghosts)
+				if(g != null) Object.Destroy(g);
 			ghosts.Clear();
 		}
 	}
 
 	public static class BuildSiteManager
 	{
-		public static readonly List<BuildSite> Sites = new List<BuildSite>();
+		public static readonly List<BuildSite> Sites = new();
 
 		public static void CreateSite(Blueprint bp, Vector3 origin, Quaternion rotation, string faction)
 		{
@@ -55,14 +55,14 @@ namespace OdinPlus
 		public static BuildSite GetUnclaimedSite(Vector3 npcPos, float maxRange, string npcFaction)
 		{
 			BuildSite best = null;
-			float bestDist = maxRange;
-			foreach (var site in Sites)
+			var bestDist = maxRange;
+			foreach(var site in Sites)
 			{
-				if (site.claimedBy != null) continue;
+				if(site.claimedBy != null) continue;
 				// Only match if site has no faction (anyone can claim) or matches this NPC's faction
-				if (!string.IsNullOrEmpty(site.faction) && site.faction != npcFaction) continue;
-				float dist = Vector3.Distance(npcPos, site.origin);
-				if (dist < bestDist)
+				if(!string.IsNullOrEmpty(site.faction) && site.faction != npcFaction) continue;
+				var dist = Vector3.Distance(npcPos, site.origin);
+				if(dist < bestDist)
 				{
 					bestDist = dist;
 					best = site;
@@ -79,14 +79,14 @@ namespace OdinPlus
 
 		public static void Clear()
 		{
-			foreach (var site in Sites) site.ClearGhosts();
+			foreach(var site in Sites) site.ClearGhosts();
 			Sites.Clear();
 		}
 
-		private static string FormatCosts(Blueprint bp)
+		static string FormatCosts(Blueprint bp)
 		{
 			var parts = new List<string>();
-			foreach (var kv in bp.resourceCosts)
+			foreach(var kv in bp.resourceCosts)
 				parts.Add($"{kv.Value} {kv.Key}");
 			return string.Join(", ", parts);
 		}

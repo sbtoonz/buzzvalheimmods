@@ -47,11 +47,15 @@ namespace OdinPlus
 		private void DoInit()
 		{
 			RavenPrefab = Tutorial.instance.m_ravenPrefab.transform.Find("Munin").gameObject;
-			if (PetManager.excObj == null)
+			if (PetManager.excObj == null && PetManager.Indicator != null)
 			{
-				PetManager.excObj = Instantiate(RavenPrefab.GetComponentInChildren<Raven>().m_exclamation, Vector3.zero, Quaternion.identity, PetManager.Indicator.transform);
-				PetManager.excObj.gameObject.GetComponentInChildren<Renderer>().material.SetColor("_EmissionColor", Color.red);
-				PetManager.excObj.gameObject.GetComponentInChildren<Renderer>().material.color = Color.red;
+				var raven = RavenPrefab.GetComponentInChildren<Raven>();
+				if (raven != null && raven.m_exclamation != null)
+				{
+					PetManager.excObj = Instantiate(raven.m_exclamation, Vector3.zero, Quaternion.identity, PetManager.Indicator.transform);
+					PetManager.excObj.gameObject.GetComponentInChildren<Renderer>().material.SetColor("_EmissionColor", Color.red);
+					PetManager.excObj.gameObject.GetComponentInChildren<Renderer>().material.color = Color.red;
+				}
 			}
 			Init();
 		}
@@ -61,11 +65,15 @@ namespace OdinPlus
 		}
 		public static void Init()
 		{
-			Root = new GameObject("OdinNPCs"); ;
+			Root = new GameObject("OdinNPCs");
 			Root.SetActive(false);
 			Root.transform.SetParent(OdinPlus.Root.transform);
-			Root.transform.position = Vector3.zero;
-			//InitTerrain();
+
+			if (LocationManager.OdinPostion != Vector3.zero)
+				Root.transform.localPosition = LocationManager.OdinPostion;
+
+			DBG.blogWarning($"[NpcManager] Init — OdinCamp position: {Root.transform.localPosition} (world: {Root.transform.position})");
+
 			InitOdinGod();
 			InitOdinPot();
 			InitOdinChest();
@@ -73,6 +81,8 @@ namespace OdinPlus
 			InitMunin();
 
 			Root.SetActive(true);
+			IsInit = true;
+			DBG.blogWarning("[NpcManager] Init complete — camp active");
 
 			// TODO: 0.221.12 - m_prefab is SoftReference, skip ForceField setup
 			// var pfab = ZoneSystem.instance.m_locations[85].m_prefab.transform.Find("ForceField");

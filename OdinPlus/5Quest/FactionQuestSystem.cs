@@ -33,7 +33,7 @@ namespace OdinPlus
 	{
 		public int ReputationGain { get; set; } = 35;
 		public int OdinCredits { get; set; } = 50;
-		public List<ItemReward> Items { get; set; } = new List<ItemReward>();
+		public List<ItemReward> Items { get; set; } = new();
 	}
 
 	[Serializable]
@@ -47,73 +47,50 @@ namespace OdinPlus
 	[Serializable]
 	public class FactionQuestConfig
 	{
-		public List<FactionQuestDef> Quests { get; set; } = new List<FactionQuestDef>();
+		public List<FactionQuestDef> Quests { get; set; } = new();
 	}
 
 	public static class FactionQuestManager
 	{
-		public static Dictionary<string, FactionQuestDef> AvailableQuests = new Dictionary<string, FactionQuestDef>();
-		private static Dictionary<string, Dictionary<string, int>> _playerProgress = new Dictionary<string, Dictionary<string, int>>();
-		private static string _configPath;
-		private static string _cachedYaml;
+		internal static Dictionary<string, FactionQuestDef> AvailableQuests = new();
+		static Dictionary<string, Dictionary<string, int>> _playerProgress = new();
+		static string _configPath;
+		static string _cachedYaml;
 
 		public static void LoadQuests(string yamlPath)
 		{
 			_configPath = yamlPath;
 			try
 			{
-				if (!File.Exists(yamlPath))
+				if(!File.Exists(yamlPath))
 				{
 					Plugin.logger.LogWarning($"[FactionQuests] Config not found at {yamlPath}, creating defaults");
 					CreateDefaultQuests(yamlPath);
 					return;
 				}
 
-				string yaml = File.ReadAllText(yamlPath);
+				var yaml = File.ReadAllText(yamlPath);
 				_cachedYaml = yaml;
 				ParseYaml(yaml);
+
+				if(ZNet.instance != null && ZNet.instance.IsServer())
+					Plugin.SyncedQuestConfig.Value = yaml;
 			}
-			catch (Exception ex)
+			catch(Exception ex)
 			{
 				Plugin.logger.LogError($"[FactionQuests] Failed to load: {ex.Message}");
 				CreateDefaultQuests(yamlPath);
 			}
 		}
 
-		// No sync scaffolding existed for this system at all before this pass - built from scratch
-		// using FactionManager's RPC pattern as the template.
-		public static void RegisterRpc()
+		public static void ApplyYaml(string yaml)
 		{
-			ZRoutedRpc.instance.Register<string>("FactionQuestSync", new Action<long, string>(RPC_FactionQuestSync));
-			ZRoutedRpc.instance.Register("RequestFactionQuestSync", new Action<long>(RPC_RequestFactionQuestSync));
-		}
-
-		public static void BroadcastSync()
-		{
-			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "FactionQuestSync", _cachedYaml);
-		}
-
-		public static void RequestSyncFromServer()
-		{
-			if (ZNet.instance == null || ZNet.instance.IsServer()) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "RequestFactionQuestSync");
-		}
-
-		private static void RPC_FactionQuestSync(long sender, string yaml)
-		{
-			if (ZNet.instance.IsServer()) return;
 			_cachedYaml = yaml;
 			ParseYaml(yaml);
+			Plugin.logger.LogInfo("[FactionQuests] Client received config from server via ConfigSync");
 		}
 
-		private static void RPC_RequestFactionQuestSync(long sender)
-		{
-			if (ZNet.instance == null || !ZNet.instance.IsServer() || _cachedYaml == null) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "FactionQuestSync", _cachedYaml);
-		}
-
-		private static void ParseYaml(string yaml)
+		static void ParseYaml(string yaml)
 		{
 			try
 			{
@@ -122,25 +99,40 @@ namespace OdinPlus
 					.Build();
 
 				var config = deserializer.Deserialize<FactionQuestConfig>(yaml);
-				if (config?.Quests == null) return;
+				if(config?.Quests == null) return;
 				AvailableQuests.Clear();
 
-				foreach (var quest in config.Quests)
+				foreach(var quest in config.Quests)
 				{
 					AvailableQuests[quest.ID] = quest;
 				}
 
+				EnrichWithGemRewards();
 				Plugin.logger.LogInfo($"[FactionQuests] Loaded {AvailableQuests.Count} quests");
 			}
-			catch (Exception e)
+			catch(Exception e)
 			{
-				DBG.blogWarning("[FactionQuests] Failed to parse YAML: " + e.Message);
+				DBG.blogWarning($"[FactionQuests] Failed to parse YAML: {e.Message}");
 			}
 		}
 
-		private static void CreateDefaultQuests(string path)
+		static void EnrichWithGemRewards()
 		{
-			string yaml = @"Quests:
+			if(!JewelcraftingCompat.IsActive) return;
+
+			foreach(var quest in AvailableQuests.Values)
+			{
+				var gemRewards = JewelcraftingCompat.GetGemRewardsForTier(quest.RequiredReputation);
+				if(gemRewards.Count > 0)
+					quest.Reward.Items.AddRange(gemRewards);
+			}
+
+			Plugin.logger.LogInfo($"[FactionQuests] Enriched {AvailableQuests.Count} quests with Jewelcrafting gem rewards");
+		}
+
+		static void CreateDefaultQuests(string path)
+		{
+			var yaml = @"Quests:
   - ID: redteam_hunt_01
     Name: Greydwarf Menace
     FactionName: RedTeam
@@ -260,15 +252,15 @@ namespace OdinPlus
 		public static List<FactionQuestDef> GetAvailableQuestsForPlayer(string playerID, string factionName)
 		{
 			var available = new List<FactionQuestDef>();
-			int playerRep = FactionManager.GetReputation(playerID, factionName);
+			var playerRep = FactionManager.GetReputation(playerID, factionName);
 
-			foreach (var quest in AvailableQuests.Values)
+			foreach(var quest in AvailableQuests.Values)
 			{
-				if (quest.FactionName == factionName && playerRep >= quest.RequiredReputation)
+				if(quest.FactionName == factionName && playerRep >= quest.RequiredReputation)
 				{
 					// Check if not already completed (simple check)
-					string progressKey = $"{playerID}_{quest.ID}";
-					if (!_playerProgress.ContainsKey(progressKey) ||
+					var progressKey = $"{playerID}_{quest.ID}";
+					if(!_playerProgress.ContainsKey(progressKey) ||
 					    !_playerProgress[progressKey].ContainsKey("completed"))
 					{
 						available.Add(quest);
@@ -281,10 +273,10 @@ namespace OdinPlus
 
 		public static void StartQuest(string playerID, string questID)
 		{
-			string progressKey = $"{playerID}_{questID}";
-			if (!_playerProgress.ContainsKey(progressKey))
+			var progressKey = $"{playerID}_{questID}";
+			if(!_playerProgress.ContainsKey(progressKey))
 			{
-				_playerProgress[progressKey] = new Dictionary<string, int>();
+				_playerProgress[progressKey] = new();
 			}
 			_playerProgress[progressKey]["progress"] = 0;
 			_playerProgress[progressKey]["started"] = 1;
@@ -293,13 +285,13 @@ namespace OdinPlus
 
 		public static void UpdateProgress(string playerID, string questID, int amount)
 		{
-			string progressKey = $"{playerID}_{questID}";
-			if (!_playerProgress.ContainsKey(progressKey))
+			var progressKey = $"{playerID}_{questID}";
+			if(!_playerProgress.ContainsKey(progressKey))
 			{
-				_playerProgress[progressKey] = new Dictionary<string, int>();
+				_playerProgress[progressKey] = new();
 			}
 
-			int current = _playerProgress[progressKey].ContainsKey("progress")
+			var current = _playerProgress[progressKey].ContainsKey("progress")
 				? _playerProgress[progressKey]["progress"]
 				: 0;
 			_playerProgress[progressKey]["progress"] = current + amount;
@@ -307,20 +299,20 @@ namespace OdinPlus
 
 		public static void CompleteQuest(string playerID, string questID)
 		{
-			if (!AvailableQuests.ContainsKey(questID)) return;
+			if(!AvailableQuests.ContainsKey(questID)) return;
 
 			var quest = AvailableQuests[questID];
-			string progressKey = $"{playerID}_{questID}";
+			var progressKey = $"{playerID}_{questID}";
 
 			// Mark completed
-			if (!_playerProgress.ContainsKey(progressKey))
+			if(!_playerProgress.ContainsKey(progressKey))
 			{
-				_playerProgress[progressKey] = new Dictionary<string, int>();
+				_playerProgress[progressKey] = new();
 			}
 			_playerProgress[progressKey]["completed"] = 1;
 
 			// Apply rewards - server-authoritative
-			if (ZNet.instance.IsServer())
+			if(ZNet.instance.IsServer())
 			{
 				FactionManager.ModifyReputation(playerID, quest.FactionName, quest.Reward.ReputationGain, true);
 			}
@@ -335,8 +327,8 @@ namespace OdinPlus
 
 		public static int GetProgress(string playerID, string questID)
 		{
-			string progressKey = $"{playerID}_{questID}";
-			if (!_playerProgress.ContainsKey(progressKey)) return 0;
+			var progressKey = $"{playerID}_{questID}";
+			if(!_playerProgress.ContainsKey(progressKey)) return 0;
 			return _playerProgress[progressKey].ContainsKey("progress")
 				? _playerProgress[progressKey]["progress"]
 				: 0;
@@ -344,19 +336,16 @@ namespace OdinPlus
 
 		public static bool IsQuestCompleted(string playerID, string questID)
 		{
-			string progressKey = $"{playerID}_{questID}";
+			var progressKey = $"{playerID}_{questID}";
 			return _playerProgress.ContainsKey(progressKey) &&
 			       _playerProgress[progressKey].ContainsKey("completed");
 		}
 
-		public static Dictionary<string, Dictionary<string, int>> GetAllProgress()
-		{
-			return _playerProgress;
-		}
+		public static Dictionary<string, Dictionary<string, int>> GetAllProgress() => _playerProgress;
 
 		public static void LoadProgress(Dictionary<string, Dictionary<string, int>> progress)
 		{
-			_playerProgress = progress ?? new Dictionary<string, Dictionary<string, int>>();
+			_playerProgress = progress ?? new();
 		}
 	}
 }

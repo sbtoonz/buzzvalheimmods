@@ -75,10 +75,12 @@ namespace OdinPlus
 
 				DBG.blogInfo($"[BlueprintConfig] Loaded {_loadedBlueprints.Count} blueprints from {yamlFiles.Length} files");
 
-				// Update Blueprints.All with loaded data
 				Blueprints.All.Clear();
 				Blueprints.All.AddRange(_loadedBlueprints.Values);
 				SyncVillagersAssignment();
+
+				if (ZNet.instance != null && ZNet.instance.IsServer())
+					Plugin.SyncedBlueprintConfig.Value = GetYamlForSync();
 			}
 			catch (Exception ex)
 			{
@@ -309,47 +311,10 @@ namespace OdinPlus
 			return serializer.Serialize(config);
 		}
 
-		/// <summary>
-		/// Client: Receive YAML from server
-		/// </summary>
-		public static void ReceiveYamlFromServer(string yaml)
+		public static void ApplyYaml(string yaml)
 		{
-			DBG.blogInfo("[BlueprintConfig] Received blueprints from server");
 			ParseYaml(yaml);
-		}
-
-		// These sync methods existed but were never wired to an actual RPC before this pass -
-		// GetYamlForSync()/ReceiveYamlFromServer() had zero callers anywhere in the project.
-		public static void RegisterRpc()
-		{
-			ZRoutedRpc.instance.Register<string>("BlueprintConfigSync", new Action<long, string>(RPC_BlueprintConfigSync));
-			ZRoutedRpc.instance.Register("RequestBlueprintSync", new Action<long>(RPC_RequestBlueprintSync));
-		}
-
-		// Broadcast covers the common case (dedicated server boots before players join). A player
-		// joining later requests sync themselves (see RequestSyncFromServer), covering the late-join case.
-		public static void BroadcastSync()
-		{
-			if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "BlueprintConfigSync", GetYamlForSync());
-		}
-
-		public static void RequestSyncFromServer()
-		{
-			if (ZNet.instance == null || ZNet.instance.IsServer()) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "RequestBlueprintSync");
-		}
-
-		private static void RPC_BlueprintConfigSync(long sender, string yaml)
-		{
-			if (ZNet.instance.IsServer()) return; // Server doesn't need its own broadcast
-			ReceiveYamlFromServer(yaml);
-		}
-
-		private static void RPC_RequestBlueprintSync(long sender)
-		{
-			if (ZNet.instance == null || !ZNet.instance.IsServer()) return;
-			ZRoutedRpc.instance.InvokeRoutedRPC(sender, "BlueprintConfigSync", GetYamlForSync());
+			DBG.blogInfo("[BlueprintConfig] Client received blueprints from server via ConfigSync");
 		}
 	}
 }
